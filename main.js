@@ -3,13 +3,15 @@ let lastRefresh=0;
 function refreshAll(){
   lastRefresh=Date.now(); const cond=conditions();
   renderVerdict(cond); renderTiles($('dCond'), cond);
-  const sig=liveSignal(); S.signal=sig; renderDashSignal(sig, cond); renderSignalPage(sig, cond);
+  const sig=liveSignal(); S.signal=sig; S.cond=cond; autoAiCheck(); renderAiPanel(); renderDashSignal(sig, cond); renderSignalPage(sig, cond); renderChartSig(sig, cond);
   renderMtf(cond.mtf); renderLevels(); renderImMini(); renderIntermarket(); renderEventsMini(); renderSessions($('dSessions')); renderPlanMini(); renderHero(); drawSpark();
   if(ANA.ready && !$('anaWrap').hidden) anaDraw(false);
   if(S.live && cfg.liveSignals && sig?.state==='signal' && Date.now()/1000-sig.bar<1800){ const g=grade(sig,cond);
     if(g!=='Skip' && !S.sigSeen.has(sig.bar+sig.side)){ S.sigHist.unshift({t:sig.bar, side:sig.side, g}); alertOnce(S.sigSeen, sig.bar+sig.side, `LIVE SIGNAL: ${sig.side==='buy'?'Buy':'Sell'} gold, grade ${g}. Entry about ${f2(sig.entry)}, SL ${f2(sig.sl)}, TP ${f2(sig.tp)}. Check the chart first.`); } }
   if(S.live && cond.news.ev){ const e=cond.news.ev, mins=Math.max(0,Math.round((e.t-Date.now())/60e3));
     alertOnce(S.newsSeen, e.t+e.event, S.mon.phase==='in' ? `NEWS in ${mins} min: ${e.event}. Consider closing or moving your stop to entry.` : `NEWS in ${mins} min: ${e.event}. No new entries until it passes.`); } }
+function autoAiCheck(){ if(!cfg.aiAuto || !S.live || !aiTeam().length) return; const pt=nowPoint(); if(!pt || pt.forming || S.aiChecks[pt.id]) return; runPointCheck(pt); }
+AIC_HOOKS.push(()=>{ placeTags(); renderAiPanel(); });
 DATA_HOOKS.push(refreshAll);
 TICK_HOOKS.push(renderHero, anaTick, p=>watchPlan(p), p=>checkPriceAlerts(p), ()=>{ if(Date.now()-lastRefresh>10e3) refreshAll(); });
 LIVE_HOOKS.push(on=>{ const b=$('liveBtn'); b.classList.toggle('btn-primary', !on); b.classList.toggle('is-live', on); b.innerHTML=`<svg><use href="#i-${on?'stop':'play'}"/></svg><span>${on?'Stop live':'Start live'}</span>`; });
@@ -28,7 +30,8 @@ function saveSettings(){ const before={feedMode:cfg.feedMode, pollSec:cfg.pollSe
 let chartMode=LS.get('goldAiDesk.chartMode','tv');
 function setChartMode(m){ chartMode=m; LS.set('goldAiDesk.chartMode', m);
   $$('[data-chartmode]').forEach(b=>b.setAttribute('aria-selected', b.dataset.chartmode===m?'true':'false'));
-  $('tvAdvWrap').hidden=m!=='tv'; $('anaWrap').hidden=m!=='ana'; $('anaTools').hidden=m!=='ana';
+  const tag=m==='tag'; $('tvAdvWrap').hidden=m!=='tv'; $('anaWrap').hidden=m==='tv'; $('anaTools').hidden=m==='tv';
+  ['chartSig','aiCheck','tagChips','tagLayer','anaBadge','tradeLegend'].forEach(id=>{ if($(id)) $(id).hidden=!tag; }); renderOverlayChips(); renderAiPanel();
   if(m==='tv') tvEnsure('tvAdv'); else { anaInit(); if(anaBars()?.length) anaDraw(true); else { $('ohlc').textContent='Start live to load the analysis chart.'; } } }
 
 // ----- wiring -----

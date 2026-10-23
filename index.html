@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=2">
+<link rel="stylesheet" href="styles.css?v=9">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M6 24 10 10h12l4 14z' fill='%23e3b341'/%3E%3C/svg%3E">
 </head>
 <body>
@@ -149,20 +149,25 @@
           <div class="seg" role="tablist" aria-label="Chart type">
             <button role="tab" aria-selected="true" data-chartmode="tv">Live chart</button>
             <button role="tab" aria-selected="false" data-chartmode="ana">Analysis chart</button>
+            <button role="tab" aria-selected="false" data-chartmode="tag">Analysis chart + Tags</button>
           </div>
           <div class="toolbar-r" id="anaTools" hidden>
             <select id="anaTf" aria-label="Timeframe"><option value="15min">15 min</option><option value="1h">1 hour</option><option value="4h">4 hours</option><option value="1day">1 day</option></select>
+            <div class="chips tagchips" id="tagChips" hidden></div>
             <div class="chips" id="ovChips"></div>
           </div>
         </div>
-        <div class="panel pad0" id="tvAdvWrap"><div class="tv tvadv" id="tvAdv"></div></div>
+        <div class="sigbar idle" id="chartSig" aria-live="polite" hidden><span class="sigword">WAIT</span><span class="sigmsg">Press Start live to get the signal.</span></div>
+        <div class="panel aiteam" id="aiCheck" hidden></div>
+        <div class="panel pad0 chart-host" id="tvAdvWrap"><div class="tv tvadv" id="tvAdv"></div></div>
         <div class="panel pad0" id="anaWrap" hidden>
           <div class="ohlc" id="ohlc">Move over the chart to read date, time, open, high, low and close.</div>
-          <div id="mainChart" class="chart-main"></div>
+          <div class="chart-host"><div id="mainChart" class="chart-main"></div><div class="tagLayer" id="tagLayer" aria-hidden="true" hidden></div><div class="chartbadge idle" id="anaBadge" aria-hidden="true" hidden></div></div>
+          <div class="trade-legend small" id="tradeLegend" hidden><span><b class="up">Past</b> entries, SL moved, TP hit, SL hit, closed</span><span><b class="gold">Now</b> the signal or open trade with live profit</span><span><b class="warnc">Future</b> dashed lines and tags: where to close (TP, SL), when to move SL, close time. A plan, not a prediction</span><span>Turn each on or off with <b>Show on chart</b> above. Small labels keep candles clear; move over a candle to read the full label.</span></div>
           <div class="pane-label" id="rsiLabel">RSI 14</div><div id="rsiChart" class="chart-pane"></div>
           <div class="pane-label" id="macdLabel">MACD 12 26 9</div><div id="macdChart" class="chart-pane"></div>
         </div>
-        <p class="muted small">Live chart: TradingView, real-time with your broker's feed and full drawing tools. Analysis chart: the app's own data with indicators, levels, signal markers and your plan. Times are Cambodia time.</p>
+        <p class="muted small">Live chart: TradingView, real-time with your broker's feed and full drawing tools. Analysis chart: the app's own data with indicators, levels, signal markers and your plan. Analysis chart + Tags: the same chart with BUY and SELL alert tags for past, now and future trades. Times are Cambodia time.</p>
       </section>
 
       <!-- ===================== SIGNALS ===================== -->
@@ -393,6 +398,7 @@
               <label class="chk"><input type="checkbox" id="enGemini">Use Gemini</label>
               <label class="chk"><input type="checkbox" id="enDeepseek">Use DeepSeek</label>
               <label class="chk"><input type="checkbox" id="discuss">Discussion round</label>
+              <label class="chk"><input type="checkbox" id="aiAuto">AI team checks new signals and open trades automatically</label>
               <label class="chk"><input type="checkbox" id="aiSearch">AI web search</label>
             </div>
           </div>
@@ -456,16 +462,16 @@
 </div>
 <div id="toasts" aria-live="polite"></div>
 
-<script src="config.js?v=2"></script>
+<script src="config.js?v=9"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
-<script src="core.js?v=2"></script>
-<script src="ind.js?v=2"></script>
-<script src="data.js?v=2"></script>
-<script src="analysis.js?v=2"></script>
-<script src="charts.js?v=2"></script>
-<script src="ai.js?v=2"></script>
-<script src="views.js?v=2"></script>
-<script src="main.js?v=2"></script>
+<script src="core.js?v=9"></script>
+<script src="ind.js?v=9"></script>
+<script src="data.js?v=9"></script>
+<script src="analysis.js?v=9"></script>
+<script src="charts.js?v=9"></script>
+<script src="ai.js?v=9"></script>
+<script src="views.js?v=9"></script>
+<script src="main.js?v=9"></script>
 </body>
 </html>

@@ -26,6 +26,66 @@ function renderVerdict(c){
 // ---------- dashboard panels ----------
 function renderTiles(node, c){ clear(node); c.tiles.forEach(x=>{ const d=el('div','tile '+x.st); d.append(el('div','k',x.k), el('div','v',x.v), el('div','d',x.d)); node.appendChild(d); }); }
 function sigPillText(sig, g){ return !sig ? ['–',''] : sig.state==='signal' ? [`${sig.side==='buy'?'Buy':'Sell'} signal · grade ${g}`, g==='Skip'?'wait':sideKind(sig.side)] : sig.state==='forming' ? [`${sig.side==='buy'?'Buy':'Sell'} forming 4/5`,'wait'] : ['No signal','']; }
+function chartSigInfo(sig, cond, op){
+  if(op){ const nm=op.side==='buy'?'BUY':'SELL', now=S.price||S.candles['15min']?.at(-1)?.c, pnl=now!=null?(now-op.entry)*op.dir:0, $p=(pnl>=0?'+$':'−$')+f2(Math.abs(usd(pnl)));
+    const plan = op.be ? `Stop loss is already at entry, so no risk now. Hold for TP ${f2(op.tp)}.` : `Hold. When price reaches ${f2(op.beAt)}, move SL to entry ${f2(op.entry)}. Close at TP ${f2(op.tp)} or SL ${f2(op.sl)}.`;
+    return {word:`${nm} OPEN ${$p}`, kind:op.side, msg:`${plan} Close by ${cfg.closeTime} if it is still open.`, nums:[['Entry',op.entry],[op.be?'SL (at entry)':'Stop loss',op.sl],['Move SL at',op.be?null:op.beAt],['Take profit',op.tp]]}; }
+  const g=grade(sig,cond), v=cond?.verdict||'', side=sig?(sig.side==='buy'?'BUY':'SELL'):'';
+  if(!sig) return {word:'WAIT', kind:'idle', msg: S.candles['15min']?.length ? 'Loading more 15 min candles.' : 'Press Start live to get the signal.'};
+  if(sig.state==='signal'){
+    if(g==='Skip') return {word:side+' · NO TRADE', kind:'wait', msg:`${side} signal, but conditions say Avoid: ${cond.why}.`};
+    if(g==='C') return {word:side+' · WEAK', kind:'wait', msg:`${side} signal, grade C. Other markets or timeframes disagree. Better to skip.`};
+    return {word:side, kind:sig.side, msg:`${side} signal, grade ${g}. Conditions ${v.toLowerCase()}. Check the candle, then enter with SL and TP set in MT5.`}; }
+  if(sig.state==='forming') return {word:side+' FORMING', kind:'wait', msg:`4 of 5 checks met. Waiting for: ${sig.checks.filter(c=>!c[1]).map(c=>c[0].toLowerCase()).join(', ')}. Don't enter yet.`};
+  return {word:'WAIT', kind:'idle', msg:`No setup now (${sig.n} of 5 checks for a ${sig.side==='buy'?'buy':'sell'}). Wait.`}; }
+function renderChartBadge(id, sig, info){ const bd=$(id); if(!bd) return; clear(bd); bd.className='chartbadge '+info.kind;
+  bd.appendChild(el('div','cbword',info.word));
+  if(info.nums) bd.appendChild(el('div','cbnums', info.nums.filter(x=>x[1]!=null).map(([k,v])=>`${k.replace('Stop loss','SL').replace('Take profit','TP')} ${f2(v)}`).join(' · ')));
+  else if(sig && sig.state!=='none') bd.appendChild(el('div','cbnums',`Entry ${f2(sig.entry)} · SL ${f2(sig.sl)} · TP ${f2(sig.tp)}`));
+  else bd.appendChild(el('div','cbnums', sig ? `${sig.n} of 5 checks` : 'Not live')); }
+function renderChartSig(sig, cond){ const box=$('chartSig'); if(!box) return; clear(box);
+  const info=chartSigInfo(sig, cond, (typeof chartTrades==='function' ? chartTrades()?.open : null)), v=cond?.verdict||'';
+  box.className='sigbar '+info.kind; box.append(el('span','sigword',info.word), el('span','sigmsg',info.msg));
+  const rows = info.nums ? info.nums.filter(x=>x[1]!=null).map(([k,v])=>[k,f2(v)]) : (sig && sig.state!=='none') ? [['Entry',f2(sig.entry)],['Stop loss',f2(sig.sl)],['Take profit',f2(sig.tp)]] : null;
+  if(rows){ const n=el('div','signums'); rows.forEach(([k,x])=>{ const d=el('div'); d.append(el('span','small muted',k), el('b',null,x)); n.appendChild(d); }); box.appendChild(n); }
+  if(v){ box.appendChild(el('span','pill '+(v==='GOOD'?'good':v==='CAUTION'?'mid':'bad'),'Conditions '+(v==='GOOD'?'Good':v==='CAUTION'?'Caution':'Avoid'))); }
+  renderChartBadge('tvBadge', sig, info); renderChartBadge('anaBadge', sig, info); }
+// ----- AI team check panel (Analysis chart + Tags) -----
+function renderAiPanel(){ const box=$('aiCheck'); if(!box || box.hidden) return; clear(box);
+  const pts=ANA.points||{}, now=typeof nowPoint==='function'?nowPoint():null; if(S.aiSel && !pts[S.aiSel] && !S.aiChecks[S.aiSel]) S.aiSel=null;
+  const id=S.aiSel || now?.id, pt=pts[id] || S.aiChecks[id]?.pt || (now?.id===id?now:null), R=S.aiChecks[id], team=aiTeam();
+  const head=el('div','panel-head'); const h=el('h2',null, pt ? `AI team check · ${pt.side==='buy'?'BUY':'SELL'} ${f2(pt.entry)} · ${pt.scope==='past'?'past trade':pt.open?'open trade':pt.forming?'forming':'new signal'}` : 'AI team check'); head.appendChild(h);
+  const right=el('div','row');
+  if(R?.status==='done'){ const F=R.final, k=F.verdict==='confirm'&&!F.mixed?'good':F.verdict==='reject'?'bad':'mid'; right.appendChild(el('span','pill '+k, `${F.by==='Claude'?'Claude':'Team'}: ${F.verdict.toUpperCase()} · ${F.agree} of ${F.of} agree · ${F.confidence}%`)); }
+  if(S.aiSel && now && S.aiSel!==now.id){ const b=el('button','btn btn-ghost','Back to now'); b.onclick=()=>{ S.aiSel=null; aicUpdate(); }; right.appendChild(b); }
+  if(pt && R?.status!=='loading'){ const b=el('button','btn '+(R?'':'btn-primary'), R?'Check again':'Ask AI team'); b.disabled=!team.length; b.onclick=()=>runPointCheck(pt); right.appendChild(b); }
+  head.appendChild(right); box.appendChild(head);
+  if(!pt){ box.appendChild(el('div','muted small','No point selected. Tap a tag on the chart (BUY, SELL or NOW) to check it. New signals and open trades are checked automatically when that is on in Settings.')); return; }
+  if(!team.length){ box.appendChild(el('div','muted small','Add Claude, Gemini or DeepSeek keys in Settings to use the AI team.')); return; }
+  if(!R){ box.appendChild(el('div','muted small', `${pt.label}. Tap "Ask AI team": ${team.join(', ')} check it, discuss, and ${team.includes('Claude')?'Claude decides':'the team votes'} (about ${team.length*2+(team.includes('Claude')?1:0)} AI answers).`)); return; }
+  if(R.status==='loading') box.appendChild(el('div','small aistep', R.step));
+  if(R.status==='error') box.appendChild(el('div','err', 'AI team check failed: '+R.error));
+  const grid=el('div','aigrid'), vk=v=>v==='confirm'?'good':v==='reject'?'bad':'mid';
+  ['Gemini','DeepSeek','Claude'].filter(n=>R.members[n] || (R.status==='loading' && team.includes(n))).forEach(n=>{ const m=R.members[n]||{}, c=el('div','aim'); const t=el('div','ain'); t.append(el('span',null,n==='Claude'?'Claude (round 1)':n));
+    if(m.r1) t.appendChild(el('span','pill '+vk(m.r1.verdict), m.r1.verdict.toUpperCase()+' '+m.r1.confidence+'%')); else if(!m.err) t.appendChild(el('span','pill','thinking…')); c.appendChild(t);
+    if(m.err) c.appendChild(el('div','err small', m.err));
+    if(m.r1){ c.appendChild(el('div','small muted', m.r1.reasoning)); if(m.r1.risks) c.appendChild(el('div','small','Risks: '+m.r1.risks));
+      if(m.r1.sl!=null || m.r1.tp!=null) c.appendChild(el('div','small',`Suggests SL ${m.r1.sl!=null?f2(m.r1.sl):'same'}, TP ${m.r1.tp!=null?f2(m.r1.tp):'same'}`));
+      c.appendChild(el('span','pill '+(m.r1.dataOK?'good':'bad'), m.r1.dataOK?'Data check ✓':'Data check ✗ read wrong levels, vote not counted')); }
+    if(m.r2) c.appendChild(el('div','small', `Discussion: ${m.r2.stance.toUpperCase()}, now ${m.r2.verdict.toUpperCase()}. ${m.r2.comment}`));
+    grid.appendChild(c); });
+  if(R.final){ const F=R.final, c=el('div','aim lead'), t=el('div','ain'); t.append(el('span',null,F.by==='Claude'?'Claude (leader) · final':'Team vote · final'), el('span','pill '+vk(F.verdict), F.verdict.toUpperCase())); c.appendChild(t);
+    if(F.action) c.appendChild(el('div','small', F.action));
+    if(F.sl!=null || F.tp!=null) c.appendChild(el('div','small', `<b>Adjusted levels:</b> SL ${F.sl!=null?f2(F.sl):f2(pt.sl)}, TP ${F.tp!=null?f2(F.tp):f2(pt.tp)}`.replace(/<\/?b>/g,'')));
+    if(F.closeIf) c.appendChild(el('div','small','Close early if: '+F.closeIf));
+    if(F.lesson) c.appendChild(el('div','small','Lesson: '+F.lesson));
+    if(F.notes) c.appendChild(el('div','small muted', F.notes));
+    const pills=el('div','row'); pills.appendChild(el('span','pill '+(F.bad.length?'bad':'good'), F.bad.length?'Data check ⚠ '+F.bad.join(', ')+' read wrong levels':'Data check ✓ all levels match the code'));
+    if(F.mixed) pills.appendChild(el('span','pill mid','Not everyone agrees: be careful'));
+    if(F.badLevels) pills.appendChild(el('span','pill mid','Suggested levels broke the risk rules and were ignored'));
+    if(R.leaderErr) pills.appendChild(el('span','pill mid','Claude unavailable: team vote used')); c.appendChild(pills); grid.appendChild(c); }
+  box.appendChild(grid);
+  box.appendChild(el('div','small muted mt', `${R.status==='done'?'Checked at '+khTime(R.at):'Working…'} · Numbers come from the app's code; the AIs only judge them. Agreement lowers mistakes but cannot remove market risk. Your stop loss is your protection.`)); }
 function renderDashSignal(sig, cond){
   const box=$('dSignal'), [t,k]=sigPillText(sig, grade(sig,cond)); pill($('dSigPill'), t, k);
   if(!sig){ empty(box,'Needs at least 60 closed 15 min candles.'); return; } clear(box);

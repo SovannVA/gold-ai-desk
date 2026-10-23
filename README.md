@@ -25,7 +25,7 @@ js/main.js      wiring and sign-in
 | Page | What you get |
 |---|---|
 | Dashboard | Big live price with tick flash, today's open, high, low and previous close, range bar (with previous-day high and low), "used X% of usual daily range", sparkline, conditions ring (Good / Caution / Avoid), live signal, multi-timeframe table (15 min, 1 h, 4 h, 1 day: trend, RSI, MACD, ADX, EMA 200), key levels nearest to price, market conditions, other markets, next economic events, session bars, active plan |
-| Chart | **Live chart**: TradingView, real-time with Pepperstone prices and full drawing tools. **Analysis chart**: the app's data with EMA 20/50/200, Bollinger, pivots, support and resistance, Fibonacci, your plan, signal arrows, RSI and MACD panes. Move over any candle to read the date, time, open, high, low, close, change, range, RSI and EMA |
+| Chart | Three tabs. **Live chart**: TradingView, real-time with Pepperstone prices and full drawing tools. **Analysis chart**: the app's data with EMA 20/50/200, Bollinger, pivots, support and resistance, Fibonacci, your plan, signal arrows, RSI and MACD panes. Move over any candle to read the date, time, open, high, low, close, change, range, RSI and EMA. **Analysis chart + Tags**: the same chart with alert tags for past trades, the trade now and the plan ahead (where to close at TP or SL, when to move SL to entry, close time). Turn Past, Now and Future on or off. Tap a tag for the AI team check |
 | Signals and alerts | 5-check live signal with grade A, B or C, "Use as alert plan", trade plan with entry, MODIFY and exit alerts, custom price alerts, alert log, TradingView technical summary |
 | World markets | Intermarket table (silver, EUR/USD, USD/JPY, dollar, bonds, S&P 500) with each one's effect on gold, global market overview, forex heat map |
 | News and economy | AI news brief (Claude web search, Gemini backup): economic events in Cambodia time, what moves gold, fundamental bias, sources. TradingView economic calendar and gold news |
@@ -35,6 +35,12 @@ js/main.js      wiring and sign-in
 | Journal | Every trade with R and $, win rate, profit factor, equity curve, CSV export. Finished alert trades can be saved with one click |
 | Tools | Position size calculator, profit and loss calculator, session clock |
 | Settings | Keys, models, risk, trading window, news buffer, price feed, theme, alerts |
+
+## AI team check (Analysis chart + Tags)
+
+Each point can be checked by the AI team. Round 1: Claude, Gemini and DeepSeek check it on their own. Round 2: Gemini and DeepSeek discuss the answers. Round 3: Claude, the leader, decides: CONFIRM, ADJUST or REJECT, with what to do now. New signals and open trades are checked automatically (Settings: "AI team checks new signals and open trades automatically"); past trades are checked when you tap a tag and press Ask AI team (they only see data up to that moment).
+
+All prices and levels come from the app's code. Each AI must copy the levels back; if one reads them wrong, its vote is not counted and the panel shows a data warning. Agreement lowers mistakes but cannot remove market risk. A check uses about 7 AI answers.
 
 ## How live data works
 

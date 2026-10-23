@@ -171,3 +171,64 @@ async function runBrief(){
   const o=parseJSON(res.text), seen=new Set();
   S.brief={...o, events:Array.isArray(o.events)?o.events:[], drivers:Array.isArray(o.drivers)?o.drivers:[], at:Date.now(), by, sources:res.sources.filter(s=>!seen.has(s.url) && seen.add(s.url)).slice(0,8)};
   LS.set('goldAiDesk.brief', S.brief); return S.brief; }
+
+// ----- AI team check of one chart point (Claude leads, Gemini and DeepSeek review) -----
+S.aiChecks = LS.get('goldAiDesk.aiChecks', {}); S.aiSel = null;
+const AIC_HOOKS = [];
+const aicSave = () => { const e=Object.entries(S.aiChecks).filter(([,v])=>v.status==='done').sort((a,b)=>b[1].at-a[1].at).slice(0,40); LS.set('goldAiDesk.aiChecks', Object.fromEntries(e)); };
+const aicUpdate = () => AIC_HOOKS.forEach(h=>h());
+function aiTeam(){ return [['Claude',cfg.enClaude,cfg.kClaude],['Gemini',cfg.enGemini,cfg.kGemini],['DeepSeek',cfg.enDeepseek,cfg.kDeepseek]].filter(([,en,k])=>en&&k).map(([n])=>n); }
+// data the AIs see: for past points only candles up to that moment (no peeking at the result)
+function pointData(pt){
+  if(pt.scope!=='past') return dataBlock();
+  const upto = b => (b||[]).filter(x=>x.t<=pt.t), b15=upto(S.candles['15min']), b1=upto(S.candles['1h']);
+  return `Market: XAU/USD, short-term trade. This is a PAST point; you only see data up to the entry candle (${khStamp(pt.t*1000)} Cambodia time).
+Account: $${cfg.balance}, lot ${cfg.lot} (1.00 price move = $${(cfg.lot*100).toFixed(2)}). Max stop-loss distance ${maxDist().toFixed(2)}.
+${tfLine('15 min',b15)}
+${tfLine('1 hour',b1)}
+Candles (Cambodia time, open,high,low,close):
+[1h]
+${csv(b1,48)}
+[15min]
+${csv(b15,64)}`; }
+function pointText(pt){ const L=`entry ${f2(pt.entry)}, stop loss ${f2(pt.sl)}, take profit ${f2(pt.tp)}, move stop loss to entry at ${f2(pt.be)}`;
+  return `POINT TO CHECK: ${pt.side.toUpperCase()} ${pt.label}. Levels (calculated by the app's code, treat as exact): ${L}. Close all trades by ${cfg.closeTime}.${pt.extra?' '+pt.extra:''}`; }
+const CHECK_SCHEMA = `{"verdict":"confirm|adjust|reject","confidence":0-100,"levels_quoted":{"entry":number,"stop_loss":number,"take_profit":number},"suggested_stop_loss":number|null,"suggested_take_profit":number|null,"risks":"max 40 words","reasoning":"max 60 words"}`;
+const r1Prompt = (pt,name) => `${pointData(pt)}\n\n${pointText(pt)}\n\nYou are ${name}, one analyst on a team led by Claude. Check this point on your own. Is the ${pt.side} direction supported by the trend, momentum, support and resistance${pt.scope==='past'?'':', other markets and news'}? Are the stop loss and take profit in sensible places (TP before the next strong level, SL beyond structure, SL distance <= ${maxDist().toFixed(2)})? "confirm" = good as is, "adjust" = good idea but change SL or TP (give prices), "reject" = do not take or hold it.\nCopy the entry, stop loss and take profit exactly into levels_quoted so the app can verify you read the data correctly.\nReturn exactly this JSON:\n${CHECK_SCHEMA}`;
+const r2Prompt = (pt,name,views) => `${pointData(pt)}\n\n${pointText(pt)}\n\nRound 1 answers from the team:\n${views}\n\nYou are ${name}. Discuss: read the other answers, say where they are right or wrong, and whether you change your view. Be specific, use prices.\nReturn exactly this JSON:\n{"stance":"agree|partly|disagree","verdict":"confirm|adjust|reject","comment":"max 50 words"}`;
+const r3Prompt = (pt,views,disc) => `${pointData(pt)}\n\n${pointText(pt)}${pt.outcome?`\nWhat happened afterwards (for the lesson only): ${pt.outcome}.`:''}\n\nRound 1 answers:\n${views}\n\nRound 2 discussion:\n${disc||'none'}\n\nYou are Claude, the team leader. Make the final decision for this point. Weigh evidence, not votes. If the evidence is mixed or any member found a real risk you cannot rule out, choose "reject" or "adjust". ${pt.scope==='past'?'This is a past point: judge whether it was a good decision with the data at that time, and give one lesson.':'Give the trader a clear action for now: hold, enter, wait, move SL, or close early.'}\nReturn exactly this JSON:\n{"verdict":"confirm|adjust|reject","confidence":0-100,"levels_quoted":{"entry":number,"stop_loss":number,"take_profit":number},"stop_loss":number|null,"take_profit":number|null,"action":"max 50 words","close_early_if":"max 30 words","lesson":"max 30 words or empty","decision_notes":"max 60 words","agreed_with":["names"],"overruled":["names"]}`;
+const V = v => { v=String(v||'').toLowerCase(); return ['confirm','adjust','reject'].includes(v)?v:'reject'; };
+function quoteOK(pt,q){ if(!q) return false; const tol=Math.max(0.5, Math.abs(pt.entry)*0.0002); return [['entry',pt.entry],['stop_loss',pt.sl],['take_profit',pt.tp]].every(([k,v])=>Math.abs(Number(q[k])-v)<=tol); }
+function sideOK(pt,sl,tp){ const d=pt.side==='buy'?1:-1; return (sl==null || ((pt.entry-sl)*d>0 && Math.abs(pt.entry-sl)<=maxDist()+1e-9)) && (tp==null || (tp-pt.entry)*d>0); }
+async function runPointCheck(pt){
+  const team=aiTeam(); if(!team.length){ toast('Add at least one AI key in Settings for the AI team check.'); return; }
+  const R={id:pt.id, pt, status:'loading', step:'Round 1: each AI checks on its own…', members:{}, at:Date.now()}; S.aiChecks[pt.id]=R; aicUpdate();
+  try{
+    await Promise.allSettled(team.map(n=>ask(n, r1Prompt(pt,n), false).then(o=>{ const a={verdict:V(o.verdict), confidence:num(o.confidence)||0, risks:String(o.risks||''), reasoning:String(o.reasoning||''), sl:num(o.suggested_stop_loss), tp:num(o.suggested_take_profit), dataOK:quoteOK(pt,o.levels_quoted)};
+      if(!sideOK(pt,a.sl,a.tp)){ a.sl=null; a.tp=null; a.badLevels=true; } R.members[n]={r1:a}; }).catch(e=>{ R.members[n]={err:errMsg(e)}; }).finally(aicUpdate)));
+    const ok=team.filter(n=>R.members[n]?.r1);
+    if(!ok.length) throw new Error('No AI answered. Check your keys.');
+    const views=ok.map(n=>{ const a=R.members[n].r1; return `${n}: ${a.verdict.toUpperCase()} (${a.confidence}%)${a.dataOK?'':' [quoted wrong levels]'}${a.sl||a.tp?`, suggests SL ${a.sl??'-'} TP ${a.tp??'-'}`:''}. Risks: ${a.risks}. Reason: ${a.reasoning}`; }).join('\n');
+    let disc='';
+    const reviewers=ok.filter(n=>n!=='Claude');
+    if(cfg.discuss && ok.length>1 && reviewers.length){ R.step='Round 2: the team discusses…'; aicUpdate(); const lines=[];
+      await Promise.allSettled(reviewers.map(n=>ask(n, r2Prompt(pt,n,views), false).then(o=>{ const d={stance:String(o.stance||''), verdict:V(o.verdict), comment:String(o.comment||'')}; R.members[n].r2=d; lines.push(`${n}: ${d.stance.toUpperCase()}, now ${d.verdict.toUpperCase()}. ${d.comment}`); }).catch(e=>{ R.members[n].r2err=errMsg(e); }).finally(aicUpdate)));
+      disc=lines.join('\n'); }
+    const latest=n=>R.members[n].r2?.verdict || R.members[n].r1.verdict;
+    let F;
+    if(team.includes('Claude')){ R.step='Round 3: Claude makes the final decision…'; aicUpdate();
+      try{ const o=await ask('Claude', r3Prompt(pt,views,disc), false);
+        F={by:'Claude', verdict:V(o.verdict), confidence:num(o.confidence)||0, sl:num(o.stop_loss), tp:num(o.take_profit), action:String(o.action||''), closeIf:String(o.close_early_if||''), lesson:String(o.lesson||''), notes:String(o.decision_notes||''), dataOK:quoteOK(pt,o.levels_quoted)};
+        if(F.sl!=null && Math.abs(F.sl-pt.sl)<0.01) F.sl=null; if(F.tp!=null && Math.abs(F.tp-pt.tp)<0.01) F.tp=null;
+        if(!sideOK(pt,F.sl,F.tp)){ F.sl=null; F.tp=null; F.badLevels=true; } }
+      catch(e){ R.leaderErr=errMsg(e); } }
+    if(!F){ const vs=ok.map(latest), all=vs.every(v=>v==='confirm'); F={by:'Team vote', verdict: all?'confirm': vs.includes('reject')?'reject':'adjust', confidence:Math.round(ok.reduce((s,n)=>s+R.members[n].r1.confidence,0)/ok.length), action: all?'All members agree.':'Members do not all agree, so be careful or wait.', notes:'', dataOK:true}; }
+    // trust only answers that read the data correctly
+    const valid=ok.filter(n=>R.members[n].r1.dataOK), bad=ok.filter(n=>!R.members[n].r1.dataOK).concat(F.dataOK?[]:['Claude (final)']);
+    F.agree=valid.filter(n=>latest(n)===F.verdict).length; F.of=ok.length; F.bad=[...new Set(bad)];
+    if(F.verdict==='confirm' && (F.agree<valid.length || bad.length)) F.mixed=true;
+    R.final=F; R.status='done'; R.at=Date.now(); aicSave();
+  }catch(e){ R.status='error'; R.error=errMsg(e); }
+  finally{ aicUpdate(); } }
+function aiMark(id){ const R=S.aiChecks[id]; if(!R) return ''; if(R.status==='loading') return '· AI…'; if(R.status==='error') return '· AI ✗ error'; const F=R.final;
+  return F.verdict==='confirm' ? (F.mixed?`⚠ AI ${F.agree}/${F.of}`:`✓ AI ${F.agree}/${F.of}`) : F.verdict==='adjust' ? `~ AI adjust` : `✗ AI reject`; }

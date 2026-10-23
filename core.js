@@ -13,7 +13,7 @@ const DEFAULTS = {
   symbol:'XAU/USD', tvSymbol:'PEPPERSTONE:XAUUSD', marketSyms:'XAG/USD,EUR/USD,USD/JPY,UUP,TLT,SPY',
   balance:200, lot:0.01, riskPct:4, winStart:'20:00', closeTime:'23:00', newsBuffer:30,
   feedMode:'ws', pollSec:30, mode:'leader', theme:'system',
-  enClaude:true, enGemini:true, enDeepseek:true, discuss:true, aiSearch:true, liveSignals:true, notif:false, sound:true
+  enClaude:true, enGemini:true, enDeepseek:true, discuss:true, aiAuto:true, aiSearch:true, liveSignals:true, notif:false, sound:true
 };
 const FIELDS = Object.keys(DEFAULTS);
 let cfg = {...DEFAULTS, ...LS.get(CFG_KEY, {})};
