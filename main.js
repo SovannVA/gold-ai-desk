@@ -77,12 +77,16 @@ Object.assign(VIEW_HOOKS, {
 const AUTHC = window.AUTH || {clientId:'', allowedEmails:[]};
 const SESSION_KEY='goldAiDesk.session', SESSION_HOURS=12;
 const authReady = () => AUTHC.clientId && !AUTHC.clientId.startsWith('YOUR_');
-const allowed = email => (AUTHC.allowedEmails||[]).map(e=>e.trim().toLowerCase()).includes(String(email||'').toLowerCase());
+async function sha256(text){ const b=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''); }
+async function allowed(email){ const e=String(email||'').trim().toLowerCase(); if(!e) return false;
+  if((AUTHC.allowedEmails||[]).map(x=>String(x).trim().toLowerCase()).includes(e)) return true;
+  const hashes=(AUTHC.allowedEmailHashes||[]).map(x=>String(x).trim().toLowerCase()); if(!hashes.length) return false;
+  try{ return hashes.includes(await sha256(e)); }catch(_){ return false; } }
 function decodeJwt(t){ let p=t.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'); p+='='.repeat((4-p.length%4)%4); return JSON.parse(decodeURIComponent(atob(p).split('').map(c=>'%'+c.charCodeAt(0).toString(16).padStart(2,'0')).join(''))); }
-function checkToken(p){ if(p.aud!==AUTHC.clientId) return 'This sign-in was not made for this site.'; if(!['accounts.google.com','https://accounts.google.com'].includes(p.iss)) return 'Unknown sign-in issuer.';
-  if(!p.exp || p.exp*1000<Date.now()) return 'Sign-in expired. Try again.'; if(!p.email_verified) return 'Your Google email is not verified.'; if(!allowed(p.email)) return `${p.email} is not allowed to use this desk.`; return ''; }
-function onCredential(resp){ let p; try{ p=decodeJwt(resp.credential); }catch(e){ $('gateMsg').textContent='Could not read the Google sign-in.'; return; }
-  const err=checkToken(p); if(err){ $('gateMsg').textContent=err; return; } LS.set(SESSION_KEY, {email:p.email, until:Date.now()+SESSION_HOURS*3600e3}); showApp(p.email); }
+async function checkToken(p){ if(p.aud!==AUTHC.clientId) return 'This sign-in was not made for this site.'; if(!['accounts.google.com','https://accounts.google.com'].includes(p.iss)) return 'Unknown sign-in issuer.';
+  if(!p.exp || p.exp*1000<Date.now()) return 'Sign-in expired. Try again.'; if(!p.email_verified) return 'Your Google email is not verified.'; if(!(await allowed(p.email))) return `${p.email} is not allowed to use this desk.`; return ''; }
+async function onCredential(resp){ let p; try{ p=decodeJwt(resp.credential); }catch(e){ $('gateMsg').textContent='Could not read the Google sign-in.'; return; }
+  const err=await checkToken(p); if(err){ $('gateMsg').textContent=err; return; } LS.set(SESSION_KEY, {email:p.email, until:Date.now()+SESSION_HOURS*3600e3}); showApp(p.email); }
 function showGate(){ $('app').hidden=true; $('gate').hidden=false;
   const render=()=>{ window.google.accounts.id.initialize({client_id:AUTHC.clientId, callback:onCredential, auto_select:false}); window.google.accounts.id.renderButton($('gbtn'), {theme:S.theme==='dark'?'filled_black':'outline', size:'large', text:'signin_with', shape:'pill'}); };
   if(window.google?.accounts?.id) render(); else window.onGoogleLibraryLoad=render; }
@@ -97,4 +101,4 @@ function signOut(){ stopLive(); LS.del(SESSION_KEY); if(window.google?.accounts?
 // ----- start -----
 applyTheme(); tdLoadCount(); loadForm(); wire(); $('logoutBtn').onclick=signOut; $('logoutBtn2').onclick=signOut; $('dClock').textContent=nowKH();
 if(!authReady()) showApp(null);
-else { const s=LS.get(SESSION_KEY, null); if(s && s.until>Date.now() && allowed(s.email)) showApp(s.email); else showGate(); }
+else { const s=LS.get(SESSION_KEY, null); (s && s.until>Date.now() ? allowed(s.email) : Promise.resolve(false)).then(ok=> ok ? showApp(s.email) : showGate()); }
