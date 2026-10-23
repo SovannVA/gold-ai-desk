@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0d1526">
+<title>Gold AI Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M6 24 10 10h12l4 14z' fill='%23e3b341'/%3E%3C/svg%3E">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11 12 4l9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M7 4v16M7 8h-2v6h2M7 8h2v6H7M17 6v14M17 10h-2v5h2M17 10h2v5h-2M12 3v18M12 7h-2v9h2M12 7h2v9h-2"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 3 5 14h6l-1 7 8-11h-6z"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></symbol>
+    <symbol id="i-ai" viewBox="0 0 24 24"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8zM18 15l.9 2.1 2.1.9-2.1.9L18 21l-.9-2.1-2.1-.9 2.1-.9z"/></symbol>
+    <symbol id="i-table" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M3 14h18M9 9v11"/></symbol>
+    <symbol id="i-rewind" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3zM5 17a3 3 0 0 1 3-3h11"/></symbol>
+    <symbol id="i-tool" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h2M12 11h2M8 15h2M12 15h2M16 11v6"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6 19 19M5 19l1.4-1.4M17.6 6.4 19 5"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5v14l11-7z"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5-9 9"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  </defs>
+</svg>
+
+<div id="gate" hidden>
+  <div class="gate-card">
+    <div class="brand big"><svg class="ingot" viewBox="0 0 32 32" aria-hidden="true"><path d="M6 24 10 10h12l4 14z"/></svg>Gold AI Desk</div>
+    <p class="muted">Sign in with your Google account to open your trading desk.</p>
+    <div id="gbtn" class="gbtn"></div>
+    <p class="err" id="gateMsg"></p>
+  </div>
+</div>
+
+<div class="shell" id="app" hidden>
+  <aside class="side" aria-label="Main navigation">
+    <div class="brand"><svg class="ingot" viewBox="0 0 32 32" aria-hidden="true"><path d="M6 24 10 10h12l4 14z"/></svg>Gold AI Desk</div>
+    <nav class="nav" id="nav">
+      <a href="#dash" data-nav="dash"><svg><use href="#i-home"/></svg>Dashboard</a>
+      <a href="#chart" data-nav="chart"><svg><use href="#i-chart"/></svg>Chart</a>
+      <a href="#signals" data-nav="signals"><svg><use href="#i-bolt"/></svg>Signals and alerts</a>
+      <a href="#markets" data-nav="markets"><svg><use href="#i-globe"/></svg>World markets</a>
+      <a href="#economy" data-nav="economy"><svg><use href="#i-cal"/></svg>News and economy</a>
+      <a href="#ai" data-nav="ai"><svg><use href="#i-ai"/></svg>AI desk</a>
+      <div class="nav-gap"></div>
+      <a href="#data" data-nav="data"><svg><use href="#i-table"/></svg>Data explorer</a>
+      <a href="#backtest" data-nav="backtest"><svg><use href="#i-rewind"/></svg>Backtest</a>
+      <a href="#journal" data-nav="journal"><svg><use href="#i-book"/></svg>Journal</a>
+      <a href="#tools" data-nav="tools"><svg><use href="#i-tool"/></svg>Tools</a>
+      <a href="#settings" data-nav="settings"><svg><use href="#i-gear"/></svg>Settings</a>
+    </nav>
+    <div class="side-foot">
+      <div class="muted small" id="creditsSide"></div>
+      <div class="muted small" id="userEmailSide"></div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="top">
+      <button class="pricechip" id="topChip" title="Go to dashboard">
+        <span class="sym">XAU/USD</span>
+        <span class="tp" id="topPrice">–</span>
+        <span class="tc" id="topChg"></span>
+      </button>
+      <span class="feed" id="feed"><span class="dot"></span><span id="feedLabel">Live off</span></span>
+      <div class="top-actions">
+        <button class="btn btn-primary" id="liveBtn"><svg><use href="#i-play"/></svg><span>Start live</span></button>
+        <button class="iconbtn" id="themeBtn" aria-label="Switch to light mode" title="Dark / light"><svg><use href="#i-sun"/></svg></button>
+        <button class="btn btn-ghost hide-sm" id="logoutBtn" hidden>Sign out</button>
+      </div>
+    </header>
+    <div class="notice" id="authWarn" hidden>Google sign-in is not set up yet, so anyone with the link can open this page. Add your Client ID and Gmail to config.js.</div>
+    <div class="tv ticker" id="tvTicker"></div>
+
+    <main class="content">
+
+      <!-- ===================== DASHBOARD ===================== -->
+      <section class="view" data-view="dash" aria-label="Dashboard">
+        <div class="hero">
+          <div class="hero-price">
+            <div class="hero-sym">Gold spot · XAU/USD <span class="muted" id="hUpdated"></span></div>
+            <div class="price" id="hPrice">–</div>
+            <div class="hero-chg" id="hChg">Start live to stream prices</div>
+          </div>
+          <div class="hero-range">
+            <div class="rstats" id="hStats"></div>
+            <div class="rbar" id="hBar"><span class="rfill" id="hFill"></span><span class="rmark" id="hMark"></span></div>
+            <div class="rlabels"><span id="hLow">Low –</span><span id="hAtr" class="muted"></span><span id="hHigh">High –</span></div>
+            <div class="spark" id="hSpark"></div>
+          </div>
+          <div class="hero-verdict">
+            <svg viewBox="0 0 120 120" class="ring" aria-hidden="true"><circle cx="60" cy="60" r="50" class="ring-bg"/><circle cx="60" cy="60" r="50" class="ring-fg" id="vRing"/></svg>
+            <div class="vtext"><div class="vlabel">Conditions</div><div class="vword" id="vWord">–</div></div>
+            <div class="vwhy muted small" id="vWhy"></div>
+          </div>
+        </div>
+
+        <div class="bento">
+          <div class="panel span-5" id="dSignalP">
+            <div class="panel-head"><h2>Live signal · 15 min</h2><span class="pill" id="dSigPill">–</span></div>
+            <div id="dSignal" class="muted">Start live or load data to calculate the signal.</div>
+          </div>
+          <div class="panel span-7">
+            <div class="panel-head"><h2>Multi-timeframe</h2><span class="pill" id="dMtfPill">–</span></div>
+            <div id="dMtf" class="muted">No data yet.</div>
+          </div>
+          <div class="panel span-4">
+            <div class="panel-head"><h2>Key levels</h2><span class="muted small">nearest first</span></div>
+            <div id="dLevels" class="muted">No data yet.</div>
+          </div>
+          <div class="panel span-8">
+            <div class="panel-head"><h2>Market conditions</h2><a href="#settings" class="muted small">Window and news buffer</a></div>
+            <div class="tiles" id="dCond"></div>
+          </div>
+          <div class="panel span-4">
+            <div class="panel-head"><h2>Other markets</h2><a href="#markets" class="small">Details</a></div>
+            <div id="dIm" class="muted">No data yet.</div>
+          </div>
+          <div class="panel span-4">
+            <div class="panel-head"><h2>Next events</h2><a href="#economy" class="small">News brief</a></div>
+            <div id="dEvents" class="muted">Get the AI news brief to see events.</div>
+          </div>
+          <div class="panel span-4">
+            <div class="panel-head"><h2>Sessions</h2><span class="muted small" id="dClock"></span></div>
+            <div id="dSessions"></div>
+          </div>
+          <div class="panel span-12">
+            <div class="panel-head"><h2>Active plan</h2><a href="#signals" class="small">Manage</a></div>
+            <div id="dPlan" class="muted">No plan set. Use a live signal or the AI desk to set one.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== CHART ===================== -->
+      <section class="view" data-view="chart" aria-label="Chart" hidden>
+        <div class="toolbar">
+          <div class="seg" role="tablist" aria-label="Chart type">
+            <button role="tab" aria-selected="true" data-chartmode="tv">Live chart</button>
+            <button role="tab" aria-selected="false" data-chartmode="ana">Analysis chart</button>
+          </div>
+          <div class="toolbar-r" id="anaTools" hidden>
+            <select id="anaTf" aria-label="Timeframe"><option value="15min">15 min</option><option value="1h">1 hour</option><option value="4h">4 hours</option><option value="1day">1 day</option></select>
+            <div class="chips" id="ovChips"></div>
+          </div>
+        </div>
+        <div class="panel pad0" id="tvAdvWrap"><div class="tv tvadv" id="tvAdv"></div></div>
+        <div class="panel pad0" id="anaWrap" hidden>
+          <div class="ohlc" id="ohlc">Move over the chart to read date, time, open, high, low and close.</div>
+          <div id="mainChart" class="chart-main"></div>
+          <div class="pane-label" id="rsiLabel">RSI 14</div><div id="rsiChart" class="chart-pane"></div>
+          <div class="pane-label" id="macdLabel">MACD 12 26 9</div><div id="macdChart" class="chart-pane"></div>
+        </div>
+        <p class="muted small">Live chart: TradingView, real-time with your broker's feed and full drawing tools. Analysis chart: the app's own data with indicators, levels, signal markers and your plan. Times are Cambodia time.</p>
+      </section>
+
+      <!-- ===================== SIGNALS ===================== -->
+      <section class="view" data-view="signals" aria-label="Signals and alerts" hidden>
+        <div class="bento">
+          <div class="panel span-7">
+            <div class="panel-head"><h2>Live signal · 15 min</h2><span class="pill" id="sigPill">–</span></div>
+            <div id="sigDetail" class="muted">Start live or load data.</div>
+          </div>
+          <div class="panel span-5">
+            <div class="panel-head"><h2>Trade plan</h2><span class="pill" id="planPill">No plan</span></div>
+            <div id="phase" class="muted">No plan set.</div>
+            <div class="row mt">
+              <input id="entryPx" type="number" step="0.01" placeholder="Your entry price" aria-label="Your entry price">
+              <button class="btn" id="enteredBtn">I entered the trade</button>
+              <button class="btn btn-ghost" id="closedBtn">Clear plan</button>
+            </div>
+            <div class="row mt" id="exitRow" hidden>
+              <input id="exitPx" type="number" step="0.01" placeholder="Exit price" aria-label="Exit price">
+              <button class="btn" id="exitBtn">Record exit in journal</button>
+            </div>
+          </div>
+          <div class="panel span-5">
+            <div class="panel-head"><h2>Price alerts</h2><span class="muted small">checked on every price update</span></div>
+            <form class="row" id="paForm">
+              <select id="paDir" aria-label="Direction"><option value="above">Price rises above</option><option value="below">Price falls below</option></select>
+              <input id="paPrice" type="number" step="0.01" placeholder="Price" required aria-label="Alert price">
+              <input id="paNote" placeholder="Note (optional)" aria-label="Note">
+              <button class="btn" type="submit">Add alert</button>
+            </form>
+            <div id="paList" class="list mt"></div>
+          </div>
+          <div class="panel span-7">
+            <div class="panel-head"><h2>Alert log</h2><button class="btn btn-ghost btn-sm" id="clearLog">Clear</button></div>
+            <div id="log" class="log"><div class="muted">Alerts will appear here.</div></div>
+          </div>
+          <div class="panel span-12">
+            <div class="panel-head"><h2>TradingView technical summary</h2><span class="muted small">oscillators and moving averages, for reference</span></div>
+            <div class="tv" id="tvGauge"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== MARKETS ===================== -->
+      <section class="view" data-view="markets" aria-label="World markets" hidden>
+        <div class="bento">
+          <div class="panel span-12">
+            <div class="panel-head"><h2>How other markets push gold today</h2><span class="pill" id="imPill">–</span></div>
+            <div id="imBody" class="muted">No data yet. Start live or refresh.</div>
+          </div>
+          <div class="panel span-7 pad0"><div class="tv" id="tvGlobal"></div></div>
+          <div class="panel span-5 pad0"><div class="tv" id="tvHeat"></div></div>
+        </div>
+      </section>
+
+      <!-- ===================== ECONOMY ===================== -->
+      <section class="view" data-view="economy" aria-label="News and economy" hidden>
+        <div class="bento">
+          <div class="panel span-12">
+            <div class="panel-head"><h2>AI news and economic brief</h2>
+              <div class="row"><span class="muted small" id="briefStatus"></span><button class="btn btn-primary" id="briefBtn">Get news brief</button></div></div>
+            <div id="briefBody" class="muted">The AI searches the web for today's economic events and what is moving gold. Once or twice per session is enough.</div>
+          </div>
+          <div class="panel span-7 pad0"><div class="tv" id="tvCal"></div></div>
+          <div class="panel span-5 pad0"><div class="tv" id="tvNews"></div></div>
+        </div>
+      </section>
+
+      <!-- ===================== AI DESK ===================== -->
+      <section class="view" data-view="ai" aria-label="AI desk" hidden>
+        <div class="bento">
+          <div class="panel span-7">
+            <div class="panel-head"><h2>Chart pictures</h2><span class="muted small">up to 4 · drag, paste or choose</span></div>
+            <label class="drop" id="drop" for="imgInput">
+              <svg><use href="#i-image"/></svg>
+              <span><b>Drop chart screenshots here</b><br><span class="muted small">or click to choose, or paste with Ctrl/Cmd + V. MT5, TradingView or phone screenshots work.</span></span>
+            </label>
+            <input type="file" id="imgInput" accept="image/*" multiple hidden>
+            <div class="thumbs" id="thumbs"></div>
+          </div>
+          <div class="panel span-5">
+            <div class="panel-head"><h2>Ask the team</h2></div>
+            <label for="notes" class="lbl">Your notes or zones (optional)</label>
+            <textarea id="notes" placeholder="Example: daily support 4085–4100, resistance 4160–4200."></textarea>
+            <div class="row mt">
+              <button class="btn btn-primary" id="analyzeBtn">Run team analysis</button>
+              <button class="btn" id="imgOnlyBtn">Analyze pictures only</button>
+            </div>
+            <div class="muted small mt" id="anStatus">Claude leads. Gemini and DeepSeek analyze and review. The team reads prices, levels, other markets, news and your pictures.</div>
+          </div>
+          <div class="span-12" id="imgResult"></div>
+          <div class="span-12 grid3" id="aiCards"></div>
+          <div class="span-12" id="consensus"></div>
+          <details class="panel span-12" id="discBox" hidden><summary>Team discussion</summary><div id="discussion"></div></details>
+        </div>
+      </section>
+
+      <!-- ===================== DATA EXPLORER ===================== -->
+      <section class="view" data-view="data" aria-label="Data explorer" hidden>
+        <div class="bento">
+          <div class="panel span-12">
+            <div class="panel-head"><h2>Find highs, lows, dates and times</h2><span class="muted small">Cambodia time</span></div>
+            <form class="formgrid" id="dxForm">
+              <div><label class="lbl" for="dxIv">Candle size</label><select id="dxIv"><option value="1min">1 min</option><option value="5min">5 min</option><option value="15min" selected>15 min</option><option value="30min">30 min</option><option value="1h">1 hour</option><option value="4h">4 hours</option><option value="1day">1 day</option><option value="1week">1 week</option></select></div>
+              <div><label class="lbl" for="dxFrom">From</label><input type="datetime-local" id="dxFrom"></div>
+              <div><label class="lbl" for="dxTo">To</label><input type="datetime-local" id="dxTo"></div>
+              <div class="formbtn"><button class="btn btn-primary" type="submit">Load data</button></div>
+            </form>
+            <div class="row mt" id="dxQuick">
+              <button class="btn btn-sm" data-q="today">Today</button><button class="btn btn-sm" data-q="yesterday">Yesterday</button>
+              <button class="btn btn-sm" data-q="week">This week</button><button class="btn btn-sm" data-q="month">Last 30 days</button><button class="btn btn-sm" data-q="year">Last 12 months</button>
+            </div>
+            <div class="statgrid mt" id="dxStats"></div>
+            <div id="dxChart" class="chart-small" hidden></div>
+          </div>
+          <div class="panel span-12">
+            <div class="panel-head"><h2>Candles</h2><div class="row"><span class="muted small" id="dxCount"></span><button class="btn btn-sm" id="dxCsv" disabled>Export CSV</button></div></div>
+            <div class="row" id="dxFilters">
+              <input id="dxSearch" placeholder="Search date or time, e.g. 2026-10-21 or 20:30" aria-label="Search date or time">
+              <select id="dxFType" aria-label="Filter"><option value="">No price filter</option><option value="hge">High at or above</option><option value="lle">Low at or below</option><option value="rge">Range at least ($)</option><option value="up">Green candles</option><option value="down">Red candles</option></select>
+              <input id="dxFVal" type="number" step="0.01" placeholder="Value" aria-label="Filter value">
+            </div>
+            <div class="tblwrap mt"><table class="tbl" id="dxTable"></table></div>
+            <div class="row mt"><button class="btn btn-sm" id="dxMore" hidden>Show more</button></div>
+          </div>
+          <div class="panel span-12">
+            <div class="panel-head"><h2>Best hours to trade</h2><button class="btn btn-sm" id="heatBtn">Calculate from last 50 days</button></div>
+            <p class="muted small">Average gold range per hour (Cambodia time) by weekday. Brighter = bigger moves. Your trading window is outlined.</p>
+            <div id="heat" class="tblwrap"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== BACKTEST ===================== -->
+      <section class="view" data-view="backtest" aria-label="Backtest" hidden>
+        <div class="bento">
+          <div class="panel span-12">
+            <div class="panel-head"><h2>Test the live signal on past data</h2></div>
+            <form class="formgrid" id="btForm">
+              <div><label class="lbl" for="btBars">History</label><select id="btBars"><option value="2000">About 3 weeks</option><option value="5000" selected>About 2 months</option></select></div>
+              <div><label class="lbl" for="btSpread">Spread and costs per trade ($)</label><input id="btSpread" type="number" step="0.05" value="0.30"></div>
+              <div class="chkcol"><label class="chk"><input type="checkbox" id="btWindow" checked>Only in my trading window</label><label class="chk"><input type="checkbox" id="btBe" checked>Move SL to entry at 1R</label><label class="chk"><input type="checkbox" id="btSkip" checked>Skip trades over my risk limit</label></div>
+              <div class="formbtn"><button class="btn btn-primary" type="submit" id="btRun">Run backtest</button></div>
+            </form>
+            <p class="muted small">Past results do not guarantee future results. Costs: 2 price-data credits.</p>
+            <div class="statgrid mt" id="btStats"></div>
+            <div id="btChart" class="chart-small" hidden></div>
+          </div>
+          <div class="panel span-12"><div class="panel-head"><h2>Trades</h2><span class="muted small" id="btCount"></span></div><div class="tblwrap"><table class="tbl" id="btTrades"></table></div></div>
+        </div>
+      </section>
+
+      <!-- ===================== JOURNAL ===================== -->
+      <section class="view" data-view="journal" aria-label="Journal" hidden>
+        <div class="bento">
+          <div class="panel span-12">
+            <div class="panel-head"><h2>Performance</h2><button class="btn btn-sm" id="jCsv">Export CSV</button></div>
+            <div class="statgrid" id="jStats"></div>
+            <div id="jChart" class="chart-small" hidden></div>
+          </div>
+          <div class="panel span-12">
+            <div class="panel-head"><h2>Add a trade</h2></div>
+            <form class="formgrid" id="jForm">
+              <div><label class="lbl" for="jDate">Date and time</label><input type="datetime-local" id="jDate" required></div>
+              <div><label class="lbl" for="jSide">Side</label><select id="jSide"><option value="buy">Buy</option><option value="sell">Sell</option></select></div>
+              <div><label class="lbl" for="jEntry">Entry</label><input type="number" step="0.01" id="jEntry" required></div>
+              <div><label class="lbl" for="jSl">Stop loss</label><input type="number" step="0.01" id="jSl"></div>
+              <div><label class="lbl" for="jTp">Take profit</label><input type="number" step="0.01" id="jTp"></div>
+              <div><label class="lbl" for="jExit">Exit</label><input type="number" step="0.01" id="jExit" required></div>
+              <div><label class="lbl" for="jLot">Lot</label><input type="number" step="0.01" id="jLot" value="0.01"></div>
+              <div><label class="lbl" for="jSrc">Source</label><select id="jSrc"><option>Live signal</option><option>AI team</option><option>Own idea</option></select></div>
+              <div class="wide"><label class="lbl" for="jNote">Notes</label><input id="jNote" placeholder="What went well, what to improve"></div>
+              <div class="formbtn"><button class="btn btn-primary" type="submit">Save trade</button></div>
+            </form>
+          </div>
+          <div class="panel span-12"><div class="panel-head"><h2>Trades</h2></div><div class="tblwrap"><table class="tbl" id="jTable"></table></div></div>
+        </div>
+      </section>
+
+      <!-- ===================== TOOLS ===================== -->
+      <section class="view" data-view="tools" aria-label="Tools" hidden>
+        <div class="bento">
+          <div class="panel span-6">
+            <div class="panel-head"><h2>Position size</h2></div>
+            <form class="formgrid two" id="psForm">
+              <div><label class="lbl" for="psBal">Balance ($)</label><input id="psBal" type="number" step="1"></div>
+              <div><label class="lbl" for="psRisk">Risk (%)</label><input id="psRisk" type="number" step="0.5"></div>
+              <div><label class="lbl" for="psEntry">Entry</label><input id="psEntry" type="number" step="0.01"></div>
+              <div><label class="lbl" for="psSl">Stop loss</label><input id="psSl" type="number" step="0.01"></div>
+              <div><label class="lbl" for="psTp">Take profit (optional)</label><input id="psTp" type="number" step="0.01"></div>
+            </form>
+            <div id="psOut" class="statgrid mt"></div>
+          </div>
+          <div class="panel span-6">
+            <div class="panel-head"><h2>Profit and loss</h2></div>
+            <form class="formgrid two" id="plForm">
+              <div><label class="lbl" for="plSide">Side</label><select id="plSide"><option value="1">Buy</option><option value="-1">Sell</option></select></div>
+              <div><label class="lbl" for="plLot">Lot</label><input id="plLot" type="number" step="0.01" value="0.01"></div>
+              <div><label class="lbl" for="plOpen">Open price</label><input id="plOpen" type="number" step="0.01"></div>
+              <div><label class="lbl" for="plClose">Close price</label><input id="plClose" type="number" step="0.01"></div>
+            </form>
+            <div id="plOut" class="statgrid mt"></div>
+          </div>
+          <div class="panel span-12">
+            <div class="panel-head"><h2>Session clock</h2><span class="muted small" id="tClock"></span></div>
+            <div id="tSessions" class="sessgrid"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================== SETTINGS ===================== -->
+      <section class="view" data-view="settings" aria-label="Settings" hidden>
+        <div class="bento">
+          <div class="panel span-6">
+            <div class="panel-head"><h2>API keys</h2><span class="muted small">saved only in this browser</span></div>
+            <div class="formgrid two">
+              <div><label class="lbl" for="kTwelve">Twelve Data (prices)</label><input id="kTwelve" type="password" autocomplete="off"></div>
+              <div><label class="lbl" for="kClaude">Claude</label><input id="kClaude" type="password" autocomplete="off"></div>
+              <div><label class="lbl" for="kGemini">Gemini</label><input id="kGemini" type="password" autocomplete="off"></div>
+              <div><label class="lbl" for="kDeepseek">DeepSeek</label><input id="kDeepseek" type="password" autocomplete="off"></div>
+              <div><label class="lbl" for="mClaude">Claude model</label><input id="mClaude"></div>
+              <div><label class="lbl" for="mGemini">Gemini model</label><input id="mGemini"></div>
+              <div><label class="lbl" for="mDeepseek">DeepSeek model</label><input id="mDeepseek"></div>
+              <div><label class="lbl" for="mode">Decision mode</label><select id="mode"><option value="leader">Claude leads and decides</option><option value="vote">Team vote, 2 of 3 agree</option></select></div>
+            </div>
+            <div class="chkrow mt">
+              <label class="chk"><input type="checkbox" id="enClaude">Use Claude</label>
+              <label class="chk"><input type="checkbox" id="enGemini">Use Gemini</label>
+              <label class="chk"><input type="checkbox" id="enDeepseek">Use DeepSeek</label>
+              <label class="chk"><input type="checkbox" id="discuss">Discussion round</label>
+              <label class="chk"><input type="checkbox" id="aiSearch">AI web search</label>
+            </div>
+          </div>
+          <div class="panel span-6">
+            <div class="panel-head"><h2>Account and risk</h2></div>
+            <div class="formgrid two">
+              <div><label class="lbl" for="balance">Balance ($)</label><input id="balance" type="number" step="1"></div>
+              <div><label class="lbl" for="lot">Lot size</label><input id="lot" type="number" step="0.01"></div>
+              <div><label class="lbl" for="riskPct">Max risk per trade (%)</label><input id="riskPct" type="number" step="0.5"></div>
+              <div><label class="lbl" for="newsBuffer">No entries before high-impact news (min)</label><input id="newsBuffer" type="number" step="5" min="0"></div>
+              <div><label class="lbl" for="winStart">Trading window starts</label><input id="winStart" type="time"></div>
+              <div><label class="lbl" for="closeTime">Close all trades by</label><input id="closeTime" type="time"></div>
+            </div>
+          </div>
+          <div class="panel span-6">
+            <div class="panel-head"><h2>Live data</h2></div>
+            <div class="formgrid two">
+              <div><label class="lbl" for="feedMode">Price feed</label><select id="feedMode"><option value="ws">Streaming (WebSocket), falls back to checks</option><option value="poll">Regular price checks</option></select></div>
+              <div><label class="lbl" for="pollSec">Price check every</label><select id="pollSec"><option value="15">15 seconds</option><option value="20">20 seconds</option><option value="30">30 seconds</option><option value="60">60 seconds</option></select></div>
+              <div><label class="lbl" for="symbol">Symbol (Twelve Data)</label><input id="symbol"></div>
+              <div><label class="lbl" for="tvSymbol">Symbol (TradingView)</label><input id="tvSymbol"></div>
+              <div class="wide"><label class="lbl" for="marketSyms">Other markets (comma separated, max 8)</label><input id="marketSyms"></div>
+            </div>
+            <p class="muted small mt" id="budgetNote"></p>
+          </div>
+          <div class="panel span-6">
+            <div class="panel-head"><h2>Display and alerts</h2></div>
+            <div class="formgrid two">
+              <div><label class="lbl" for="theme">Theme</label><select id="theme"><option value="system">Match my device</option><option value="dark">Dark</option><option value="light">Light</option></select></div>
+            </div>
+            <div class="chkrow mt">
+              <label class="chk"><input type="checkbox" id="notif">Browser notifications</label>
+              <label class="chk"><input type="checkbox" id="sound">Alert sound</label>
+              <label class="chk"><input type="checkbox" id="liveSignals">Signal alerts in live mode</label>
+            </div>
+            <p class="muted small mt">Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView</a> (live chart widgets and Lightweight Charts). Prices by Twelve Data.</p>
+            <div class="row mt"><button class="btn btn-primary" id="saveBtn">Save settings</button><button class="btn" id="clearKeys">Clear keys</button><button class="btn btn-ghost" id="resetData">Reset journal and alerts</button></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <nav class="bottomnav" aria-label="Quick navigation">
+    <a href="#dash" data-nav="dash"><svg><use href="#i-home"/></svg>Home</a>
+    <a href="#chart" data-nav="chart"><svg><use href="#i-chart"/></svg>Chart</a>
+    <a href="#signals" data-nav="signals"><svg><use href="#i-bolt"/></svg>Signals</a>
+    <a href="#ai" data-nav="ai"><svg><use href="#i-ai"/></svg>AI</a>
+    <button id="moreBtn" aria-expanded="false" aria-controls="moreSheet"><svg><use href="#i-more"/></svg>More</button>
+  </nav>
+  <div class="sheet" id="moreSheet" hidden>
+    <a href="#markets" data-nav="markets"><svg><use href="#i-globe"/></svg>World markets</a>
+    <a href="#economy" data-nav="economy"><svg><use href="#i-cal"/></svg>News and economy</a>
+    <a href="#data" data-nav="data"><svg><use href="#i-table"/></svg>Data explorer</a>
+    <a href="#backtest" data-nav="backtest"><svg><use href="#i-rewind"/></svg>Backtest</a>
+    <a href="#journal" data-nav="journal"><svg><use href="#i-book"/></svg>Journal</a>
+    <a href="#tools" data-nav="tools"><svg><use href="#i-tool"/></svg>Tools</a>
+    <a href="#settings" data-nav="settings"><svg><use href="#i-gear"/></svg>Settings</a>
+    <button class="btn btn-ghost" id="logoutBtn2">Sign out</button>
+  </div>
+</div>
+<div id="toasts" aria-live="polite"></div>
+
+<script src="config.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+<script src="js/core.js"></script>
+<script src="js/ind.js"></script>
+<script src="js/data.js"></script>
+<script src="js/analysis.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/views.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
