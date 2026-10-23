@@ -70,15 +70,18 @@ async function claudeFetch(body){
   try{ r=await send(mode); j=await r.json(); }catch(e){ r=null; }
   if(!r || r.status===401){ const other = mode==='bearer'?'xkey':'bearer';
     try{ const r2=await send(other), j2=await r2.json(); if(r2.ok || r2.status!==401 || !r){ r=r2; j=j2; if(r2.ok){ CLAUDE_AUTH=other; LS.set('goldAiDesk.claudeAuth', other); } } }catch(e){ if(!r) throw e; } }
-  if(!r.ok) throw new Error(j?.error?.message||('HTTP '+r.status)); return j; }
+  if(!r.ok){ if(r.status===401) throw new Error('Claude did not accept the API key (401). Create a new key in Claude Console, copy it with the Copy button, and paste it into Settings → Claude.'); throw new Error(j?.error?.message||('HTTP '+r.status)); } return j; }
 async function callClaude(prompt, useImg=true, maxTok=1600){
   const content=[]; if(useImg) S.images.forEach(im=>content.push({type:'image', source:{type:'base64', media_type:im.mime, data:im.b64}})); content.push({type:'text', text:prompt});
   const j=await claudeFetch({model:cfg.mClaude, max_tokens:maxTok, system:SYSTEM, messages:[{role:'user', content}]}); return (j.content||[]).filter(c=>c.type==='text').map(c=>c.text).join(''); }
 async function callGemini(prompt, useImg=true){
+  // Google sometimes answers "high demand" (503/429): wait and try again, up to 3 times
+  for(let k=0;;k++){ try{ return await callGeminiOnce(prompt, useImg); }catch(e){ if(k>=2 || !e.busy) throw e; await new Promise(z=>setTimeout(z, 4000*(k+1))); } } }
+async function callGeminiOnce(prompt, useImg=true){
   const parts=[]; if(useImg) S.images.forEach(im=>parts.push({inline_data:{mime_type:im.mime, data:im.b64}})); parts.push({text:prompt});
   const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(cfg.mGemini)}:generateContent`, {method:'POST', headers:{'content-type':'application/json','x-goog-api-key':cfg.kGemini},
     body:JSON.stringify({systemInstruction:{parts:[{text:SYSTEM}]}, contents:[{role:'user', parts}], generationConfig:{temperature:0.2, responseMimeType:'application/json'}})});
-  const j=await r.json(); if(!r.ok) throw new Error(j.error?.message||('HTTP '+r.status)); return (j.candidates?.[0]?.content?.parts||[]).filter(p=>p.text && !p.thought).map(p=>p.text).join(''); }
+  const j=await r.json(); if(!r.ok){ const e=new Error(j.error?.message||('HTTP '+r.status)); e.busy=[429,500,503].includes(r.status) || /demand|overloaded|unavailable/i.test(e.message); throw e; } return (j.candidates?.[0]?.content?.parts||[]).filter(p=>p.text && !p.thought).map(p=>p.text).join(''); }
 async function callDeepseek(prompt){
   const r=await fetch('https://api.deepseek.com/chat/completions', {method:'POST', headers:{'content-type':'application/json','authorization':'Bearer '+cfg.kDeepseek},
     body:JSON.stringify({model:cfg.mDeepseek, temperature:0.2, response_format:{type:'json_object'}, messages:[{role:'system',content:SYSTEM},{role:'user',content:prompt}]})});
