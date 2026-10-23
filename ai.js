@@ -61,9 +61,16 @@ const PIC_SCHEMA = `{"charts":[{"picture":1,"symbol":"what the chart shows","tim
 const picPrompt = () => `${S.candles['15min'] ? dataBlock() : `Account: $${cfg.balance}, lot ${cfg.lot}. Max stop-loss distance ${maxDist().toFixed(2)}. Cambodia time ${nowKH()}.`}\n\nThe trader sent ${S.images.length} chart picture(s). Read each picture: symbol, timeframe, trend, support and resistance prices you can see, chart patterns and indicators. Then compare with the live data above (if any) and give a short-term plan for gold.\n${RULES()}\nReturn exactly this JSON:\n${PIC_SCHEMA}`;
 
 // ----- provider calls -----
+// New Console keys use "Authorization: Bearer"; older keys also accept "x-api-key". Try Bearer first, then fall back.
+let CLAUDE_AUTH = LS.get('goldAiDesk.claudeAuth', 'bearer');
 async function claudeFetch(body){
-  const r=await fetch('https://api.anthropic.com/v1/messages', {method:'POST', headers:{'content-type':'application/json','x-api-key':cfg.kClaude,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'}, body:JSON.stringify(body)});
-  const j=await r.json(); if(!r.ok) throw new Error(j.error?.message||('HTTP '+r.status)); return j; }
+  const key=String(cfg.kClaude||'').trim();
+  const send = mode => fetch('https://api.anthropic.com/v1/messages', {method:'POST', headers:{'content-type':'application/json', ...(mode==='bearer'?{'authorization':'Bearer '+key}:{'x-api-key':key}), 'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'}, body:JSON.stringify(body)});
+  let r, j, mode=CLAUDE_AUTH;
+  try{ r=await send(mode); j=await r.json(); }catch(e){ r=null; }
+  if(!r || r.status===401){ const other = mode==='bearer'?'xkey':'bearer';
+    try{ const r2=await send(other), j2=await r2.json(); if(r2.ok || r2.status!==401 || !r){ r=r2; j=j2; if(r2.ok){ CLAUDE_AUTH=other; LS.set('goldAiDesk.claudeAuth', other); } } }catch(e){ if(!r) throw e; } }
+  if(!r.ok) throw new Error(j?.error?.message||('HTTP '+r.status)); return j; }
 async function callClaude(prompt, useImg=true, maxTok=1600){
   const content=[]; if(useImg) S.images.forEach(im=>content.push({type:'image', source:{type:'base64', media_type:im.mime, data:im.b64}})); content.push({type:'text', text:prompt});
   const j=await claudeFetch({model:cfg.mClaude, max_tokens:maxTok, system:SYSTEM, messages:[{role:'user', content}]}); return (j.content||[]).filter(c=>c.type==='text').map(c=>c.text).join(''); }
