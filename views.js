@@ -54,13 +54,24 @@ function renderChartSig(sig, cond){ const box=$('chartSig'); if(!box) return; cl
 function renderAiPanel(){ const box=$('aiCheck'); if(!box || box.hidden) return; clear(box);
   const pts=ANA.points||{}, now=typeof nowPoint==='function'?nowPoint():null; if(S.aiSel && !pts[S.aiSel] && !S.aiChecks[S.aiSel]) S.aiSel=null;
   const id=S.aiSel || now?.id, pt=pts[id] || S.aiChecks[id]?.pt || (now?.id===id?now:null), R=S.aiChecks[id], team=aiTeam();
-  const head=el('div','panel-head'); const h=el('h2',null, pt ? `AI team check · ${pt.side==='buy'?'BUY':'SELL'} ${f2(pt.entry)} · ${pt.scope==='past'?'past trade':pt.open?'open trade':pt.forming?'forming':'new signal'}` : 'AI team check'); head.appendChild(h);
+  const head=el('div','panel-head'); const h=el('h2',null, pt ? (pt.market ? `AI team check · market now (no setup yet)` : `AI team check · ${pt.side==='buy'?'BUY':'SELL'} ${f2(pt.entry)} · ${pt.scope==='past'?'past trade':pt.open?'open trade':pt.forming?'forming':'new signal'}`) : 'AI team check'); head.appendChild(h);
   const right=el('div','row');
   if(R?.status==='done'){ const F=R.final, k=F.verdict==='confirm'&&!F.mixed?'good':F.verdict==='reject'?'bad':'mid'; right.appendChild(el('span','pill '+k, `${F.by==='Claude'?'Claude':'Team'}: ${F.verdict.toUpperCase()} · ${F.agree} of ${F.of} agree · ${F.confidence}%`)); }
   if(S.aiSel && now && S.aiSel!==now.id){ const b=el('button','btn btn-ghost','Back to now'); b.onclick=()=>{ S.aiSel=null; aicUpdate(); }; right.appendChild(b); }
-  if(pt && R?.status!=='loading'){ const b=el('button','btn '+(R?'':'btn-primary'), R?'Check again':'Ask AI team'); b.disabled=!team.length; b.onclick=()=>runPointCheck(pt); right.appendChild(b); }
+  if(pt && R?.status!=='loading'){ const b=el('button','btn '+(R?'':'btn-primary'), R?'Check again':(pt.market?'Ask AI team about now':'Ask AI team')); b.disabled=!team.length; b.onclick=()=>runPointCheck(pt); right.appendChild(b); }
   head.appendChild(right); box.appendChild(head);
-  if(!pt){ box.appendChild(el('div','muted small','No point selected. Tap a tag on the chart (BUY, SELL or NOW) to check it. New signals and open trades are checked automatically when that is on in Settings.')); return; }
+  // team status: who is ready
+  const st=el('div','aiteamrow'); [['Claude','enClaude','kClaude','leader'],['Gemini','enGemini','kGemini','member'],['DeepSeek','enDeepseek','kDeepseek','member']].forEach(([n,en,k,role])=>{
+    const m=R?.members?.[n], ready=cfg[en]&&cfg[k]; let txt, kind;
+    if(!cfg[en]){ txt='off in Settings'; kind=''; } else if(!cfg[k]){ txt='no API key'; kind='bad'; }
+    else if(R?.status==='loading' && !m) { txt='thinking…'; kind='mid'; }
+    else if(m?.err){ txt='error'; kind='bad'; }
+    else if(n==='Claude' && R?.final?.by==='Claude'){ txt='final: '+R.final.verdict; kind=R.final.verdict==='confirm'?'good':R.final.verdict==='reject'?'bad':'mid'; }
+    else if(m?.r1){ const v=m.r2?.verdict||m.r1.verdict; txt=v+(m.r1.dataOK?'':' · data ✗'); kind=v==='confirm'?'good':v==='reject'?'bad':'mid'; }
+    else { txt='ready'; kind='good'; }
+    const c=el('span','pill '+kind, `${n} (${role}): ${txt}`); st.appendChild(c); });
+  box.appendChild(st);
+  if(!pt){ box.appendChild(el('div','muted small','Start live to load prices. Then tap a tag on the chart (BUY, SELL or NOW) to check it. New signals and open trades are checked automatically when that is on in Settings.')); return; }
   if(!team.length){ box.appendChild(el('div','muted small','Add Claude, Gemini or DeepSeek keys in Settings to use the AI team.')); return; }
   if(!R){ box.appendChild(el('div','muted small', `${pt.label}. Tap "Ask AI team": ${team.join(', ')} check it, discuss, and ${team.includes('Claude')?'Claude decides':'the team votes'} (about ${team.length*2+(team.includes('Claude')?1:0)} AI answers).`)); return; }
   if(R.status==='loading') box.appendChild(el('div','small aistep', R.step));

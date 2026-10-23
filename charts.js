@@ -72,6 +72,7 @@ function nowPoint(){ const bt=chartTrades(), op=bt?.open, sg=S.signal;
     return {id:`${op.side}-${op.t}`, scope:'now', side:op.side, entry:op.entry, sl:op.sl0, tp:op.tp, be:op.beAt, t:op.t-900, open:true, label:`open trade since ${khTime(op.t*1000)} Cambodia time`, extra:`Current price ${f2(now)}, open result ${usdTxt(pnl)}.${op.be?' The stop loss has already been moved to entry.':''}`}; }
   if(sg && sg.state==='signal') return {id:`sig-${sg.side}-${sg.bar}`, scope:'now', side:sg.side, entry:sg.entry, sl:sg.sl, tp:sg.tp, be:sg.be, t:sg.bar, label:'new signal on the last closed 15 min candle (not entered yet)'};
   if(sg && sg.state==='forming') return {id:`form-${sg.side}-${sg.bar}`, scope:'now', side:sg.side, entry:sg.entry, sl:sg.sl, tp:sg.tp, be:sg.be, t:sg.bar, forming:true, label:`setup forming, 4 of 5 checks (missing: ${sg.checks.filter(c=>!c[1]).map(c=>c[0]).join(', ')})`};
+  if(sg && sg.entry!=null) return {id:`mkt-${sg.side}-${sg.bar}`, scope:'now', market:true, side:sg.side, entry:sg.entry, sl:sg.sl, tp:sg.tp, be:sg.be, t:sg.bar, label:`no setup yet (${sg.n} of 5 checks for a ${sg.side}). Question: should the trader wait, or prepare a ${sg.side} at these levels`};
   return null; }
 // ----- trades on the chart: past (entry, SL moved, exit), now (open trade), plan ahead (dashed) -----
 function drawTrades(b, o, pl){
@@ -117,7 +118,7 @@ function drawTrades(b, o, pl){
         const pre=sg.state==='signal'?'':'If triggered: ';
         tag(f[14], sg.tp, `${pre}TP ${f2(sg.tp)}`, 'tp', sg.side==='sell', 'TP', NP?.id, 'sym'); tag(f[14], sg.sl, `${pre}SL ${f2(sg.sl)}`, 'sl', sg.side==='buy', 'SL', NP?.id, 'sym'); tag(f[26], sg.be, `Move SL → entry at ${f2(sg.be)}`, 'be', sg.side==='sell', 'Move SL', NP?.id, 'sym');
         if(closeT) vl.push({time:closeT, text:`Close by ${cfg.closeTime}`}); }
-    } else if(N){ tag(tl, b.at(-1).c, 'NOW: no setup – wait', 'close', true, 'wait'); }
+    } else if(N){ tag(tl, b.at(-1).c, 'NOW: no setup – wait', 'close', true, 'wait', NP?.id, 'full'); }
   }
   ANA.tsr.forEach(x=>ANA.main.removeSeries(x)); ANA.tsr=segs.map(g=>{ const [color,w,st]=STY[g.k]; const x=ANA.main.addLineSeries({color, lineWidth:w, lineStyle:st, priceLineVisible:false, lastValueVisible:false, crosshairMarkerVisible:false}); x.setData(g.d); return x; });
   if(!ANA.tsr.length && F && on){ /* keep space for the future even with no lines */ }

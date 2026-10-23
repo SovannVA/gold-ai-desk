@@ -10,7 +10,7 @@ function refreshAll(){
     if(g!=='Skip' && !S.sigSeen.has(sig.bar+sig.side)){ S.sigHist.unshift({t:sig.bar, side:sig.side, g}); alertOnce(S.sigSeen, sig.bar+sig.side, `LIVE SIGNAL: ${sig.side==='buy'?'Buy':'Sell'} gold, grade ${g}. Entry about ${f2(sig.entry)}, SL ${f2(sig.sl)}, TP ${f2(sig.tp)}. Check the chart first.`); } }
   if(S.live && cond.news.ev){ const e=cond.news.ev, mins=Math.max(0,Math.round((e.t-Date.now())/60e3));
     alertOnce(S.newsSeen, e.t+e.event, S.mon.phase==='in' ? `NEWS in ${mins} min: ${e.event}. Consider closing or moving your stop to entry.` : `NEWS in ${mins} min: ${e.event}. No new entries until it passes.`); } }
-function autoAiCheck(){ if(!cfg.aiAuto || !S.live || !aiTeam().length) return; const pt=nowPoint(); if(!pt || pt.forming || S.aiChecks[pt.id]) return; runPointCheck(pt); }
+function autoAiCheck(){ if(!cfg.aiAuto || !S.live || !aiTeam().length) return; const pt=nowPoint(); if(!pt || pt.forming || pt.market || S.aiChecks[pt.id]) return; runPointCheck(pt); }
 AIC_HOOKS.push(()=>{ placeTags(); renderAiPanel(); });
 DATA_HOOKS.push(refreshAll);
 TICK_HOOKS.push(renderHero, anaTick, p=>watchPlan(p), p=>checkPriceAlerts(p), ()=>{ if(Date.now()-lastRefresh>10e3) refreshAll(); });
