@@ -54,7 +54,9 @@ function setFeed(state, msg){
   const f=$('feed'), l=$('feedLabel'); if(!f) return; f.className='feed'; f.title=msg||'';
   const map={off:'Live off', connecting:'Connecting…', ws:'Live · streaming', poll:`Live · every ${cfg.pollSec} s`, wait:'Waiting for data limit', error:'Data error', stale:'No new price'};
   if(['ws','poll'].includes(state)) f.classList.add('on'); if(['connecting','wait','error','stale'].includes(state)) f.classList.add('warn');
-  l.textContent = map[state] || state; }
+  l.textContent = map[state] || state;
+  if(['ws','poll'].includes(state) && typeof goldOpen==='function' && !goldOpen()){ f.className='feed warn'; l.textContent='Market closed · prices paused'; f.title='Gold is closed (weekend or daily break). Prices start moving again when the market opens: Monday about 05:00 Cambodia time.'; } }
+setInterval(()=>{ if(S.live && ['ws','poll'].includes(S.feed)) setFeed(S.feed); }, 60e3);
 
 // ----- WebSocket stream (Twelve Data). Basic plans may not stream every symbol: then we fall back to polling. -----
 function wsClose(){ const ws=S.ws; S.ws=null; clearInterval(S.timers.hb); try{ ws?.close(); }catch(e){} }

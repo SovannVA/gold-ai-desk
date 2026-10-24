@@ -12,6 +12,19 @@ function refreshAll(){
     alertOnce(S.newsSeen, e.t+e.event, S.mon.phase==='in' ? `NEWS in ${mins} min: ${e.event}. Consider closing or moving your stop to entry.` : `NEWS in ${mins} min: ${e.event}. No new entries until it passes.`); } }
 function autoAiCheck(){ if(!cfg.aiAuto || !S.live || !aiTeam().length) return; const pt=nowPoint(); if(!pt || pt.forming || pt.market || S.aiChecks[pt.id]) return; runPointCheck(pt); }
 AIC_HOOKS.push(()=>{ placeTags(); renderAiPanel(); });
+// ----- full screen for charts (native when possible, otherwise fills the window, e.g. on iPhone) -----
+function fsEl(){ return document.fullscreenElement || document.webkitFullscreenElement || document.querySelector('.fswrap.fs'); }
+function fsOpen(el){ if(!el) return; const req=el.requestFullscreen||el.webkitRequestFullscreen;
+  if(req && (document.fullscreenEnabled||document.webkitFullscreenEnabled)){ Promise.resolve(req.call(el)).then(()=>el.classList.add('fs')).catch(()=>{ el.classList.add('fs','fsfake'); document.body.classList.add('noscroll'); }); }
+  else { el.classList.add('fs','fsfake'); document.body.classList.add('noscroll'); } }
+function fsClose(){ const el=fsEl(); if(document.fullscreenElement||document.webkitFullscreenElement){ (document.exitFullscreen||document.webkitExitFullscreen).call(document); }
+  document.querySelectorAll('.fswrap.fs').forEach(x=>x.classList.remove('fs','fsfake')); document.body.classList.remove('noscroll'); }
+['fullscreenchange','webkitfullscreenchange'].forEach(ev=>document.addEventListener(ev,()=>{ if(!(document.fullscreenElement||document.webkitFullscreenElement)) document.querySelectorAll('.fswrap.fs:not(.fsfake)').forEach(x=>x.classList.remove('fs')); setTimeout(()=>{ if(typeof placeTags==='function') placeTags(); },120); }));
+document.addEventListener('keydown',e=>{ if(e.key==='Escape' && document.querySelector('.fswrap.fsfake')) fsClose(); });
+$('chartFs').onclick=()=>fsOpen(chartMode==='tv' ? $('tvAdvWrap') : $('anaWrap'));
+$('dxFs').onclick=()=>fsOpen($('dxWrap'));
+document.querySelectorAll('[data-fsexit]').forEach(b=>b.onclick=fsClose);
+new MutationObserver(()=>{ $('dxFs').hidden=$('dxChart').hidden; }).observe($('dxChart'),{attributes:true, attributeFilter:['hidden']});
 DATA_HOOKS.push(refreshAll);
 TICK_HOOKS.push(renderHero, anaTick, p=>watchPlan(p), p=>checkPriceAlerts(p), ()=>{ if(Date.now()-lastRefresh>10e3) refreshAll(); });
 LIVE_HOOKS.push(on=>{ const b=$('liveBtn'); b.classList.toggle('btn-primary', !on); b.classList.toggle('is-live', on); b.innerHTML=`<svg><use href="#i-${on?'stop':'play'}"/></svg><span>${on?'Stop live':'Start live'}</span>`; });

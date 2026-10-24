@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=13">
+<link rel="stylesheet" href="styles.css?v=15">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M6 24 10 10h12l4 14z' fill='%23e3b341'/%3E%3C/svg%3E">
 </head>
 <body>
@@ -151,6 +151,7 @@
             <button role="tab" aria-selected="false" data-chartmode="ana">Analysis chart</button>
             <button role="tab" aria-selected="false" data-chartmode="tag">Analysis chart + Tags</button>
           </div>
+          <button class="btn btn-sm fsopen" type="button" id="chartFs" title="Show the chart on the whole screen">⛶ Full screen</button>
           <div class="toolbar-r" id="anaTools" hidden>
             <select id="anaTf" aria-label="Timeframe"><option value="15min">15 min</option><option value="1h">1 hour</option><option value="4h">4 hours</option><option value="1day">1 day</option></select>
             <div class="chips tagchips" id="tagChips" hidden></div>
@@ -159,8 +160,9 @@
         </div>
         <div class="sigbar idle" id="chartSig" aria-live="polite" hidden><span class="sigword">WAIT</span><span class="sigmsg">Press Start live to get the signal.</span></div>
         <div class="panel aiteam" id="aiCheck" hidden></div>
-        <div class="panel pad0 chart-host" id="tvAdvWrap"><div class="tv tvadv" id="tvAdv"></div></div>
-        <div class="panel pad0" id="anaWrap" hidden>
+        <div class="panel pad0 chart-host fswrap" id="tvAdvWrap"><div class="tv tvadv" id="tvAdv"></div><button class="btn btn-sm fsexit" type="button" data-fsexit>✕ Exit full screen</button></div>
+        <div class="panel pad0 fswrap" id="anaWrap" hidden>
+          <button class="btn btn-sm fsexit" type="button" data-fsexit>✕ Exit full screen</button>
           <div class="ohlc" id="ohlc">Move over the chart to read date, time, open, high, low and close.</div>
           <div class="chart-host"><div id="mainChart" class="chart-main"></div><div class="tagLayer" id="tagLayer" aria-hidden="true" hidden></div><div class="chartbadge idle" id="anaBadge" aria-hidden="true" hidden></div></div>
           <div class="trade-legend small" id="tradeLegend" hidden><span><b class="up">Past</b> entries, SL moved, TP hit, SL hit, closed</span><span><b class="gold">Now</b> the signal or open trade with live profit</span><span><b class="warnc">Future</b> dashed lines and tags: where to close (TP, SL), when to move SL, close time. A plan, not a prediction</span><span>Turn each on or off with <b>Show on chart</b> above. Small labels keep candles clear; move over a candle to read the full label.</span></div>
@@ -281,7 +283,7 @@
               <button class="btn btn-sm" data-q="week">This week</button><button class="btn btn-sm" data-q="month">Last 30 days</button><button class="btn btn-sm" data-q="year">Last 12 months</button>
             </div>
             <div class="statgrid mt" id="dxStats"></div>
-            <div id="dxChart" class="chart-small" hidden></div>
+            <div class="fswrap dxwrap" id="dxWrap"><div class="row dxfsrow"><button class="btn btn-sm" type="button" id="dxFs" hidden>⛶ Full screen</button></div><div id="dxChart" class="chart-small" hidden></div><button class="btn btn-sm fsexit" type="button" data-fsexit>✕ Exit full screen</button></div>
           </div>
           <div class="panel span-12">
             <div class="panel-head"><h2>Candles</h2><div class="row"><span class="muted small" id="dxCount"></span><button class="btn btn-sm" id="dxCsv" disabled>Export CSV</button></div></div>
@@ -462,16 +464,16 @@
 </div>
 <div id="toasts" aria-live="polite"></div>
 
-<script src="config.js?v=13"></script>
+<script src="config.js?v=15"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
-<script src="core.js?v=13"></script>
-<script src="ind.js?v=13"></script>
-<script src="data.js?v=13"></script>
-<script src="analysis.js?v=13"></script>
-<script src="charts.js?v=13"></script>
-<script src="ai.js?v=13"></script>
-<script src="views.js?v=13"></script>
-<script src="main.js?v=13"></script>
+<script src="core.js?v=15"></script>
+<script src="ind.js?v=15"></script>
+<script src="data.js?v=15"></script>
+<script src="analysis.js?v=15"></script>
+<script src="charts.js?v=15"></script>
+<script src="ai.js?v=15"></script>
+<script src="views.js?v=15"></script>
+<script src="main.js?v=15"></script>
 </body>
 </html>

@@ -121,12 +121,14 @@ function backtest(b, h1, o){
       if(d>0 ? x.l<=pos.sl : x.h>=pos.sl){ exit=pos.sl; why=pos.be?'Breakeven':'Stop loss'; }
       else if(d>0 ? x.h>=pos.tp : x.l<=pos.tp){ exit=pos.tp; why='Take profit'; }
       else { if(o.be && !pos.be && (d>0 ? x.h>=pos.beAt : x.l<=pos.beAt)){ pos.be=true; pos.beT=tEnd; pos.sl=pos.entry+d*o.spread; }
-        if(o.window && !inWindow(tEnd*1000)){ exit=x.c; why='Close time'; } }
+        if(o.window && !inWindow(tEnd*1000)){ exit=x.c; why='Close time'; }
+        if(o.mkt && !goldOpen(new Date(tEnd*1000)) && ['Fri','Sat','Sun'].includes(localParts('America/New_York',new Date(tEnd*1000)).wd)){ exit=x.c; why='Market closed'; } }
       if(exit!=null){ const pnl=(exit-pos.entry)*d-o.spread; trades.push({...pos, exit, exitT:tEnd, why, pnl, r:pnl/pos.risk, usd:usd(pnl)}); pos=null; }
       continue; }
     while(hj+1<h1.length && h1[hj+1].t+3600<=tEnd) hj++;
     const up = (h1.length && h1[hj].t+3600<=tEnd) ? he20[hj]>he50[hj] : A.e20[i]>e50[i];
     if(o.closedOnly && tEnd>Date.now()/1000+5) continue;
+    if(o.mkt && (!goldOpen(new Date(tEnd*1000)) || !goldOpen(new Date(tEnd*1000+3600e3)))) continue;
     const s=signalCore(b,i,A,up); if(s.n!==5) continue;
     if(o.window && !inWindow(tEnd*1000)) continue; if(o.skip && s.tooRisky) continue;
     pos={dir:s.side==='buy'?1:-1, side:s.side, entry:s.entry, sl:s.sl, sl0:s.sl, tp:s.tp, beAt:s.be, risk:s.risk, t:tEnd, be:false}; }
