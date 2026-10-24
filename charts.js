@@ -64,7 +64,7 @@ function anaDraw(fit){
   ohlcReadout(null); }
 let CT={key:'', r:null};
 function chartTrades(){ const b=S.candles['15min']; if(!b || b.length<60) return null; const x=b.at(-1), key=b.length+'|'+x.t+'|'+x.c+'|'+x.h+'|'+x.l+'|'+(S.candles['1h']?.length||0);
-  if(CT.key!==key){ CT={key, r:backtest(b, S.candles['1h']||[], {spread:0.3, be:true, window:false, skip:true, closedOnly:true, mkt:true})}; } return CT.r; }
+  if(CT.key!==key){ CT={key, r:backtest(b, S.candles['1h']||[], {spread:0.3, be:true, window:false, skip:false, closedOnly:true, mkt:true})}; } return CT.r; }
 const usdTxt=v=>(v>=0?'+$':'−$')+f2(Math.abs(usd(v)));
 function pastPoint(tr){ return {id:`${tr.side}-${tr.t}`, scope:'past', side:tr.side, entry:tr.entry, sl:tr.sl0, tp:tr.tp, be:tr.beAt, t:tr.t-900, label:`entered ${khStamp((tr.t)*1000)} (past trade)`, outcome:`${tr.why}, result ${usdTxt(tr.pnl)}`}; }
 function nowPoint(){ const bt=chartTrades(), op=bt?.open, sg=S.signal;
@@ -89,7 +89,7 @@ function drawTrades(b, o, pl){
     const col=s=>s==='buy'?C.up():C.down(), arr=s=>s==='buy'?'arrowUp':'arrowDown', pos=s=>s==='buy'?'belowBar':'aboveBar', nm=s=>s==='buy'?'BUY':'SELL';
     const bar=t=>b.find(x=>x.t===t);
     const entry=(tr,pre='',pt)=>{ const t=tr.t-step, x=bar(t); mk.push({time:t+OFF, position:pos(tr.side), color:col(tr.side), shape:arr(tr.side)});
-      if(pt) ANA.points[pt.id]=pt; tag(t+OFF, tr.entry, `${pre}${nm(tr.side)} ${f2(tr.entry)}`, tr.side, tr.side!=='buy', pre+nm(tr.side), pt?.id, 'full'); };
+      if(pt) ANA.points[pt.id]=pt; const rk=tr.tooRisky; tag(t+OFF, tr.entry, `${pre}${nm(tr.side)} ${f2(tr.entry)}${rk?` · SL ${f2(Math.abs(tr.entry-tr.sl0))} away, over your ${f2(maxDist())} limit: skip or smaller lot`:''}`, tr.side, tr.side!=='buy', pre+nm(tr.side)+(rk?' ⚠':''), pt?.id, 'full'); };
     const be=tr=>{ if(!tr.beT) return; const t=tr.beT-step; mk.push({time:t+OFF, position:'inBar', color:'#e9a23b', shape:'circle'}); tag(t+OFF, tr.beAt, 'Move SL → entry', 'be', tr.side==='buy', 'BE'); };
     if(P) bt.trades.forEach((tr,j)=>{ const t1=tr.t-step+OFF, t2=tr.exitT-step+OFF, q=j%2; entry(tr,'',pastPoint(tr)); be(tr);
       seg('tE'+q,t1,t2,tr.entry); seg('tS'+q,t1,t2,tr.sl0); seg('tT'+q,t1,t2,tr.tp);

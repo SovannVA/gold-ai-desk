@@ -29,6 +29,7 @@ function sigPillText(sig, g){ return !sig ? ['–',''] : sig.state==='signal' ? 
 function chartSigInfo(sig, cond, op){
   if(op){ const nm=op.side==='buy'?'BUY':'SELL', now=S.price||S.candles['15min']?.at(-1)?.c, pnl=now!=null?(now-op.entry)*op.dir:0, $p=(pnl>=0?'+$':'−$')+f2(Math.abs(usd(pnl)));
     const plan = op.be ? `Stop loss is already at entry, so no risk now. Hold for TP ${f2(op.tp)}.` : `Hold. When price reaches ${f2(op.beAt)}, move SL to entry ${f2(op.entry)}. Close at TP ${f2(op.tp)} or SL ${f2(op.sl)}.`;
+    if(op.tooRisky) return {word:`${nm} · OVER RISK`, kind:'wait', msg:`The desk's ${nm} signal has a stop loss ${f2(Math.abs(op.entry-op.sl0))} away, more than your limit of ${f2(maxDist())}. Skip it, or use a smaller lot. Levels shown for learning only.`, nums:[['Entry',op.entry],['Stop loss',op.sl],['Take profit',op.tp]]};
     return {word:`${nm} OPEN ${$p}`, kind:op.side, msg:`${plan} Close by ${cfg.closeTime} if it is still open.`, nums:[['Entry',op.entry],[op.be?'SL (at entry)':'Stop loss',op.sl],['Move SL at',op.be?null:op.beAt],['Take profit',op.tp]]}; }
   const g=grade(sig,cond), v=cond?.verdict||'', side=sig?(sig.side==='buy'?'BUY':'SELL'):'';
   if(!sig) return {word:'WAIT', kind:'idle', msg: S.candles['15min']?.length ? 'Loading more 15 min candles.' : 'Press Start live to get the signal.'};

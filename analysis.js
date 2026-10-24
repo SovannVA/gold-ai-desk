@@ -131,7 +131,7 @@ function backtest(b, h1, o){
     if(o.mkt && (!goldOpen(new Date(tEnd*1000)) || !goldOpen(new Date(tEnd*1000+3600e3)))) continue;
     const s=signalCore(b,i,A,up); if(s.n!==5) continue;
     if(o.window && !inWindow(tEnd*1000)) continue; if(o.skip && s.tooRisky) continue;
-    pos={dir:s.side==='buy'?1:-1, side:s.side, entry:s.entry, sl:s.sl, sl0:s.sl, tp:s.tp, beAt:s.be, risk:s.risk, t:tEnd, be:false}; }
+    pos={dir:s.side==='buy'?1:-1, side:s.side, entry:s.entry, sl:s.sl, sl0:s.sl, tp:s.tp, beAt:s.be, risk:s.risk, tooRisky:s.tooRisky, t:tEnd, be:false}; }
   let eq=0, peak=0, dd=0, gw=0, gl=0; const curve=[];
   trades.forEach(tr=>{ eq+=tr.usd; peak=Math.max(peak,eq); dd=Math.min(dd,eq-peak); if(tr.usd>0) gw+=tr.usd; else gl+=tr.usd; curve.push({t:tr.exitT, v:eq}); });
   const wins=trades.filter(x=>x.usd>0).length;
