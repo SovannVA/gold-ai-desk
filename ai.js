@@ -174,7 +174,7 @@ async function geminiSearch(prompt){
   return {text:(cand.content?.parts||[]).filter(p=>p.text && !p.thought).map(p=>p.text).join(''), sources:(cand.groundingMetadata?.groundingChunks||[]).map(g=>g.web).filter(w=>w?.uri).map(w=>({url:w.uri, title:w.title||w.uri}))}; }
 async function runBrief(){
   if(!cfg.aiSearch){ toast('Turn on AI web search in Settings.'); return null; }
-  const useC=!!cfg.kClaude, useG=!!cfg.kGemini; if(!useC && !useG){ toast('Add a Claude or Gemini key in Settings.'); return null; }
+  const useC=!!(cfg.enClaude && cfg.kClaude), useG=!!(cfg.enGemini && cfg.kGemini); if(!useC && !useG){ toast('Turn on Claude or Gemini (with a key) in Settings.'); return null; }
   let res, by;
   if(useC){ try{ res=await claudeSearch(briefPrompt()); by='Claude'; }catch(e){ if(!useG) throw e; toast('Claude search failed ('+errMsg(e)+'). Trying Gemini.'); } }
   if(!res){ res=await geminiSearch(briefPrompt()); by='Gemini'; }
