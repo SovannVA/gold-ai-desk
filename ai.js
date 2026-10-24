@@ -81,12 +81,16 @@ async function callGeminiOnce(prompt, useImg=true){
   const parts=[]; if(useImg) S.images.forEach(im=>parts.push({inline_data:{mime_type:im.mime, data:im.b64}})); parts.push({text:prompt});
   const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(cfg.mGemini)}:generateContent`, {method:'POST', headers:{'content-type':'application/json','x-goog-api-key':cfg.kGemini},
     body:JSON.stringify({systemInstruction:{parts:[{text:SYSTEM}]}, contents:[{role:'user', parts}], generationConfig:{temperature:0.2, responseMimeType:'application/json'}})});
-  const j=await r.json(); if(!r.ok){ const e=new Error(j.error?.message||('HTTP '+r.status)); e.busy=[429,500,503].includes(r.status) || /demand|overloaded|unavailable/i.test(e.message); throw e; } return (j.candidates?.[0]?.content?.parts||[]).filter(p=>p.text && !p.thought).map(p=>p.text).join(''); }
+  const j=await r.json(); if(!r.ok){ const e=new Error(j.error?.message||('HTTP '+r.status)); e.quota=/quota/i.test(e.message); e.busy=!e.quota && ([429,500,503].includes(r.status) || /demand|overloaded|unavailable/i.test(e.message));
+    if(e.quota){ const m=e.message.match(/retry in (?:(\d+)h)?(?:(\d+)m)?/i), ms=m?((+m[1]||0)*60+(+m[2]||0))*60e3:3600e3; S.geminiPauseUntil=Date.now()+Math.max(ms,60e3); LS.set('goldAiDesk.geminiPause', S.geminiPauseUntil);
+      e.message=`Gemini free daily limit reached. It works again at about ${khTime(S.geminiPauseUntil)} Cambodia time. Automatic checks are paused until then.`; }
+    throw e; } return (j.candidates?.[0]?.content?.parts||[]).filter(p=>p.text && !p.thought).map(p=>p.text).join(''); }
 async function callDeepseek(prompt){
   const r=await fetch('https://api.deepseek.com/chat/completions', {method:'POST', headers:{'content-type':'application/json','authorization':'Bearer '+cfg.kDeepseek},
     body:JSON.stringify({model:cfg.mDeepseek, temperature:0.2, response_format:{type:'json_object'}, messages:[{role:'system',content:SYSTEM},{role:'user',content:prompt}]})});
   const j=await r.json(); if(!r.ok) throw new Error(j.error?.message||('HTTP '+r.status)); return j.choices?.[0]?.message?.content||''; }
 const CALLS = {Claude:callClaude, Gemini:callGemini, DeepSeek:callDeepseek};
+S.geminiPauseUntil = LS.get('goldAiDesk.geminiPause', 0);
 function parseJSON(t){ t=String(t||''); const e=t.lastIndexOf('}'); let s=t.indexOf('{'); if(s<0||e<s) throw new Error('No JSON in answer');
   while(s>=0 && s<e){ try{ return JSON.parse(t.slice(s,e+1)); }catch(_){ s=t.indexOf('{',s+1); } } throw new Error('Could not read the AI answer'); }
 const ask = async (name, prompt, useImg) => parseJSON(await CALLS[name](prompt, useImg && name!=='DeepSeek'));
