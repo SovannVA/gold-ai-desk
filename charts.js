@@ -18,6 +18,14 @@ const pts = (b, arr) => b.map((x,i)=> arr[i]==null ? {time:x.t+OFF} : {time:x.t+
 THEME_HOOKS.push(()=>{ CHARTS.forEach(({ch,extra})=>{ try{ ch.applyOptions(chartOpts(extra)); }catch(e){} });
   [ANA.candles, DX.candles].forEach(s=>s?.applyOptions(candleStyle())); if(ANA.ready) anaDraw(false); drawSpark(); });
 
+// ----- keep the user's scroll and zoom when data is redrawn -----
+// If the view was at the newest candle, follow new candles (like MT5 auto-scroll). If the user scrolled back, keep the same candles in view.
+function viewSnap(ch, b){ const r=ch?.timeScale().getVisibleLogicalRange(); return r && b?.length ? {r:{from:r.from, to:r.to}, len:b.length, t0:b[0].t, old:b, atEnd:r.to>=b.length-1.5} : null; }
+function viewRestore(ch, snap, b){ if(!ch || !snap || !b?.length) return; let shift;
+  if(snap.atEnd) shift=b.length-snap.len;
+  else { const j=b.findIndex(x=>x.t===snap.t0); if(j>=0) shift=j; else { const k=snap.old.findIndex(x=>x.t===b[0].t); shift = k>=0 ? -k : 0; } }
+  ch.timeScale().setVisibleLogicalRange({from:snap.r.from+shift, to:snap.r.to+shift}); }
+
 // ----- analysis chart -----
 const OVERLAYS=[['ema20','EMA 20'],['ema50','EMA 50'],['ema200','EMA 200'],['bb','Bollinger'],['pivots','Pivots'],['sr','Support and resistance'],['fib','Fibonacci'],['plan','My plan'],['markers','Signal markers'],['rsi','RSI pane'],['macd','MACD pane']];
 const ANA = {ready:false, tf:'15min', ov:{ema20:true, ema50:true, ema200:false, bb:false, pivots:true, sr:true, fib:false, plan:true, markers:true, tags:true, past:true, now:true, future:true, tagFull:false, rsi:true, macd:true, ...LS.get('goldAiDesk.ov',{})}, plines:[], arr:{}};
@@ -41,6 +49,8 @@ function anaInit(){
 function anaBars(){ return ANA.tf==='4h' ? (S.candles['1h'] ? aggregate(S.candles['1h'],14400) : null) : S.candles[ANA.tf]; }
 function anaDraw(fit){
   if(!ANA.ready && !anaInit()) return; const b=anaBars(); if(!b?.length) return; const o=ANA.ov, c=b.map(x=>x.c);
+  const fitKey=ANA.tf; if(ANA.fitKey!==fitKey){ fit=true; ANA.fitKey=fitKey; }
+  const snap = fit ? null : viewSnap(ANA.main, ANA.prevB); ANA.prevB=b;
   ANA.candles.setData(b.map(x=>({time:x.t+OFF, open:x.o, high:x.h, low:x.l, close:x.c})));
   const e20=ema(c,20), e50=ema(c,50), e200=ema(c,200).map((v,i)=>i<199?null:v), bb=bollinger(c), r=rsi(c), m=macd(c);
   ANA.arr={b, e20, e50, r, mh:m.hist}; ANA.idx=new Map(b.map((x,i)=>[x.t+OFF,i]));
@@ -60,7 +70,7 @@ function anaDraw(fit){
   if(tagMode) drawTrades(b, o, pl);
   else { ANA.tsr.forEach(x=>ANA.main.removeSeries(x)); ANA.tsr=[]; ANA.tags=[]; ANA.vl=[]; placeTags();
     ANA.candles.setMarkers(o.markers && ANA.tf==='15min' ? signalMarkers(b, S.candles['1h']).map(s=>({time:s.t+OFF, position:s.side==='buy'?'belowBar':'aboveBar', color:s.side==='buy'?C.up():C.down(), shape:s.side==='buy'?'arrowUp':'arrowDown', text:''})) : []); }
-  if(fit) ANA.main.timeScale().setVisibleLogicalRange({from:Math.max(0,b.length-160), to:b.length+(tagMode?44:6)});
+  if(fit) ANA.main.timeScale().setVisibleLogicalRange({from:Math.max(0,b.length-160), to:b.length+(tagMode?44:6)}); else viewRestore(ANA.main, snap, b);
   ohlcReadout(null); }
 let CT={key:'', r:null};
 function chartTrades(){ const b=S.candles['15min']; if(!b || b.length<60) return null; const x=b.at(-1), key=b.length+'|'+x.t+'|'+x.c+'|'+x.h+'|'+x.l+'|'+(S.candles['1h']?.length||0);

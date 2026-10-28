@@ -131,11 +131,12 @@ function smcInit(){ if(SMC.ready || !window.LightweightCharts) return SMC.ready;
   SMC.ch.timeScale().subscribeVisibleLogicalRangeChange(()=>requestAnimationFrame(smcOverlay)); new ResizeObserver(()=>requestAnimationFrame(smcOverlay)).observe(node);
   SMC.ready=true; return true; }
 function smcDraw(fit){ const r=SMC.res; if(!smcInit() || !r) return; const b=r.b, sec=smcSec();
+  if(SMC.fitKey!==SMC.tf){ fit=true; SMC.fitKey=SMC.tf; } const snap = fit ? null : viewSnap(SMC.ch, SMC.prevB); SMC.prevB=b;
   SMC.cs.setData(b.map(x=>({time:x.t+OFF, open:x.o, high:x.h, low:x.l, close:x.c})));
   SMC.pad.setData(Array.from({length:24},(_,k)=>({time:b.at(-1).t+OFF+sec*(k+1)})));   // room on the right for boxes ahead
   const mk=[]; if(SMC.ov.past || SMC.ov.boxes) r.setups.forEach(s=>{ if(!SMC.ov.past && s!==r.open) return; mk.push({time:b[s.i].t+OFF, position:s.dir>0?'belowBar':'aboveBar', color:s.dir>0?C.up():C.down(), shape:s.dir>0?'arrowUp':'arrowDown'}); });
   SMC.cs.setMarkers(mk);
-  if(fit) SMC.ch.timeScale().setVisibleLogicalRange({from:Math.max(0,b.length-170), to:b.length+18});
+  if(fit) SMC.ch.timeScale().setVisibleLogicalRange({from:Math.max(0,b.length-170), to:b.length+18}); else viewRestore(SMC.ch, snap, b);
   renderSmcBadge(smcInfo(r)); smcOverlay(); }
 function smcOverlay(){ const L=$('smcLayer'); if(!L || !SMC.ready || !SMC.res || $('smcWrap').hidden) return; L.innerHTML='';
   const r=SMC.res, b=r.b, n=b.length, ts=SMC.ch.timeScale(), W=ts.width(), H=$('smcChart').clientHeight-26, ov=SMC.ov;
