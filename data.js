@@ -50,7 +50,7 @@ function onTick(price, ms=Date.now()){
   TICK_HOOKS.forEach(f=>{ try{ f(price); }catch(e){ console.error(e); } }); }
 
 // ----- fast ticks: Binance PAXG/USDT trades (tokenized gold, free, no key), shifted to Twelve Data's spot price -----
-// PAXG trades many times a second. Its price differs from spot gold by a few dollars, so we measure the gap each time
+// PAXG trades many times a second; each trade is shown on the next screen frame (up to 60 a second). Its price differs from spot gold by a few dollars, so we measure the gap each time
 // Twelve Data sends a spot price and add it. Fast ticks run only while the gold market is open.
 const FT={ws:null, last:null, offset:null, pend:null, timer:null, tries:0, tdAt:0, tdP:null};
 function tdTick(price, ms){ if(!(price>0)) return; FT.tdAt=Date.now(); FT.tdP=price;
@@ -63,7 +63,7 @@ function ftConnect(){ ftClose(); if(!cfg.fastTicks || !S.live) return; let ws;
   try{ ws=new WebSocket('wss://data-stream.binance.vision:443/ws/paxgusdt@aggTrade'); }catch(e){ return; }
   FT.ws=ws;
   ws.onmessage=e=>{ let m; try{ m=JSON.parse(e.data); }catch(_){ return; } const p=Number(m.p); if(!(p>0)) return;
-    FT.last={p, at:Date.now()}; FT.pend={p, t:m.T||Date.now()}; if(!FT.timer) FT.timer=setTimeout(ftEmit, 200); };   // at most 5 updates a second
+    FT.last={p, at:Date.now()}; FT.pend={p, t:m.T||Date.now()}; if(!FT.timer) FT.timer = document.hidden ? setTimeout(ftEmit, 250) : requestAnimationFrame(ftEmit); };   // hidden tab: keep alerts working   // every trade, grouped per screen frame
   ws.onopen=()=>{ FT.tries=0; };
   ws.onclose=()=>{ if(FT.ws!==ws) return; FT.ws=null; S.fast=false; if(S.live && cfg.fastTicks && ++FT.tries<=5) setTimeout(()=>{ if(S.live && !FT.ws) ftConnect(); }, 2000*FT.tries); }; }
 function ftClose(){ const ws=FT.ws; FT.ws=null; S.fast=false; try{ ws?.close(); }catch(e){} }
