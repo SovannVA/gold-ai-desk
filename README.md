@@ -18,6 +18,7 @@ js/charts.js    charts and TradingView widgets
 js/ai.js        news brief, AI team, picture analysis
 js/views.js     page rendering
 js/main.js      wiring and sign-in
+smc.js          Smart Money Concepts chart
 ```
 
 ## Pages
@@ -35,6 +36,10 @@ js/main.js      wiring and sign-in
 | Journal | Every trade with R and $, win rate, profit factor, equity curve, CSV export. Finished alert trades can be saved with one click |
 | Tools | Position size calculator, profit and loss calculator, session clock |
 | Settings | Keys, models, risk, trading window, news buffer, price feed, theme, alerts |
+
+## SMC chart (Smart Money Concepts)
+
+Fourth tab on the Chart page. Draws BOS and CHoCH, order blocks, fair value gaps, liquidity ($$$ above highs and below lows) and sweeps, premium and discount, and SMC trade boxes (green TP, red SL). Rules for a setup: structure trend from BOS/CHoCH, price comes back into a fresh order block in premium (sells) or discount (buys), a confirmation candle closes back out of it, and the target is the liquidity at the end of the leg with at least 1:1.5 reward to risk. Grade A when liquidity was swept first. New setups sound an alert while live. Uses the app's 15 min or 1 hour candles; computed only from closed candles.
 
 ## AI team check (Analysis chart + Tags)
 

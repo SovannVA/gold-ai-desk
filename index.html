@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=17">
+<link rel="stylesheet" href="styles.css?v=18">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M6 24 10 10h12l4 14z' fill='%23e3b341'/%3E%3C/svg%3E">
 </head>
 <body>
@@ -150,6 +150,7 @@
             <button role="tab" aria-selected="true" data-chartmode="tv">Live chart</button>
             <button role="tab" aria-selected="false" data-chartmode="ana">Analysis chart</button>
             <button role="tab" aria-selected="false" data-chartmode="tag">Analysis chart + Tags</button>
+            <button role="tab" aria-selected="false" data-chartmode="smc">SMC chart</button>
           </div>
           <button class="btn btn-sm fsopen" type="button" id="chartFs" title="Show the chart on the whole screen">⛶ Full screen</button>
           <div class="toolbar-r" id="anaTools" hidden>
@@ -157,9 +158,15 @@
             <div class="chips tagchips" id="tagChips" hidden></div>
             <div class="chips" id="ovChips"></div>
           </div>
+          <div class="toolbar-r" id="smcTools" hidden>
+            <select id="smcTf" aria-label="SMC timeframe"><option value="15min">15 min</option><option value="1h">1 hour</option></select>
+            <div class="chips" id="smcChips"></div>
+          </div>
         </div>
         <div class="sigbar idle" id="chartSig" aria-live="polite" hidden><span class="sigword">WAIT</span><span class="sigmsg">Press Start live to get the signal.</span></div>
         <div class="panel aiteam" id="aiCheck" hidden></div>
+        <div class="sigbar idle" id="smcSig" aria-live="polite" hidden><span class="sigword">WAIT</span><span class="sigmsg">Press Start live to load prices.</span></div>
+        <details class="panel smcchecks" id="smcCheckBox" hidden open><summary>SMC checklist</summary><div id="smcChecks" class="mt"></div></details>
         <div class="panel pad0 chart-host fswrap" id="tvAdvWrap"><div class="tv tvadv" id="tvAdv"></div><button class="btn btn-sm fsexit" type="button" data-fsexit>✕ Exit full screen</button></div>
         <div class="panel pad0 fswrap" id="anaWrap" hidden>
           <button class="btn btn-sm fsexit" type="button" data-fsexit>✕ Exit full screen</button>
@@ -169,7 +176,12 @@
           <div class="pane-label" id="rsiLabel">RSI 14</div><div id="rsiChart" class="chart-pane"></div>
           <div class="pane-label" id="macdLabel">MACD 12 26 9</div><div id="macdChart" class="chart-pane"></div>
         </div>
-        <p class="muted small">Live chart: TradingView, real-time with your broker's feed and full drawing tools. Analysis chart: the app's own data with indicators, levels, signal markers and your plan. Analysis chart + Tags: the same chart with BUY and SELL alert tags for past, now and future trades. Times are Cambodia time.</p>
+        <div class="panel pad0 fswrap" id="smcWrap" hidden>
+          <button class="btn btn-sm fsexit" type="button" data-fsexit>✕ Exit full screen</button>
+          <div class="chart-host smchost"><div id="smcChart" class="chart-main smc-main"></div><div class="smcLayer" id="smcLayer" aria-hidden="true"></div></div>
+          <div class="trade-legend small" id="smcLegend" hidden><span><b class="up">BOS</b> trend continues</span><span><b class="warnc">CHoCH</b> trend changes</span><span><b class="down">Bear OB</b> / <b class="up">Bull OB</b> order blocks</span><span><b class="muted">FVG</b> fair value gap</span><span><b class="info">$$$</b> liquidity (stops waiting), <b class="info">SWEEP</b> taken</span><span><b class="up">green</b> / <b class="down">red</b> boxes: TP and SL of each setup</span><span>Rules: trend from BOS/CHoCH → price back into an order block in premium (sells) or discount (buys) → confirmation candle → target the liquidity. Grade A = liquidity swept first.</span></div>
+        </div>
+        <p class="muted small">Live chart: TradingView, real-time with your broker's feed and full drawing tools. Analysis chart: the app's own data with indicators, levels, signal markers and your plan. Analysis chart + Tags: the same chart with BUY and SELL alert tags for past, now and future trades. SMC chart: Smart Money Concepts with structure, order blocks, gaps, liquidity and SMC buy and sell setups. Times are Cambodia time.</p>
       </section>
 
       <!-- ===================== SIGNALS ===================== -->
@@ -464,16 +476,17 @@
 </div>
 <div id="toasts" aria-live="polite"></div>
 
-<script src="config.js?v=17"></script>
+<script src="config.js?v=18"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
-<script src="core.js?v=17"></script>
-<script src="ind.js?v=17"></script>
-<script src="data.js?v=17"></script>
-<script src="analysis.js?v=17"></script>
-<script src="charts.js?v=17"></script>
-<script src="ai.js?v=17"></script>
-<script src="views.js?v=17"></script>
-<script src="main.js?v=17"></script>
+<script src="core.js?v=18"></script>
+<script src="ind.js?v=18"></script>
+<script src="data.js?v=18"></script>
+<script src="analysis.js?v=18"></script>
+<script src="charts.js?v=18"></script>
+<script src="ai.js?v=18"></script>
+<script src="views.js?v=18"></script>
+<script src="smc.js?v=18"></script>
+<script src="main.js?v=18"></script>
 </body>
 </html>

@@ -21,7 +21,7 @@ function fsClose(){ const el=fsEl(); if(document.fullscreenElement||document.web
   document.querySelectorAll('.fswrap.fs').forEach(x=>x.classList.remove('fs','fsfake')); document.body.classList.remove('noscroll'); }
 ['fullscreenchange','webkitfullscreenchange'].forEach(ev=>document.addEventListener(ev,()=>{ if(!(document.fullscreenElement||document.webkitFullscreenElement)) document.querySelectorAll('.fswrap.fs:not(.fsfake)').forEach(x=>x.classList.remove('fs')); setTimeout(()=>{ if(typeof placeTags==='function') placeTags(); },120); }));
 document.addEventListener('keydown',e=>{ if(e.key==='Escape' && document.querySelector('.fswrap.fsfake')) fsClose(); });
-$('chartFs').onclick=()=>fsOpen(chartMode==='tv' ? $('tvAdvWrap') : $('anaWrap'));
+$('chartFs').onclick=()=>fsOpen(chartMode==='tv' ? $('tvAdvWrap') : chartMode==='smc' ? $('smcWrap') : $('anaWrap'));
 $('dxFs').onclick=()=>fsOpen($('dxWrap'));
 document.querySelectorAll('[data-fsexit]').forEach(b=>b.onclick=fsClose);
 new MutationObserver(()=>{ $('dxFs').hidden=$('dxChart').hidden; }).observe($('dxChart'),{attributes:true, attributeFilter:['hidden']});
@@ -43,9 +43,10 @@ function saveSettings(){ const before={feedMode:cfg.feedMode, pollSec:cfg.pollSe
 let chartMode=LS.get('goldAiDesk.chartMode','tv');
 function setChartMode(m){ chartMode=m; LS.set('goldAiDesk.chartMode', m);
   $$('[data-chartmode]').forEach(b=>b.setAttribute('aria-selected', b.dataset.chartmode===m?'true':'false'));
-  const tag=m==='tag'; $('tvAdvWrap').hidden=m!=='tv'; $('anaWrap').hidden=m==='tv'; $('anaTools').hidden=m==='tv';
+  const tag=m==='tag', ana=m==='ana'||m==='tag', smc=m==='smc'; $('tvAdvWrap').hidden=m!=='tv'; $('anaWrap').hidden=!ana; $('anaTools').hidden=!ana;
+  ['smcWrap','smcTools','smcSig','smcCheckBox'].forEach(id=>{ if($(id)) $(id).hidden=!smc; });
   ['chartSig','aiCheck','tagChips','tagLayer','anaBadge','tradeLegend'].forEach(id=>{ if($(id)) $(id).hidden=!tag; }); renderOverlayChips(); renderAiPanel();
-  if(m==='tv') tvEnsure('tvAdv'); else { anaInit(); if(anaBars()?.length) anaDraw(true); else { $('ohlc').textContent='Start live to load the analysis chart.'; } } }
+  if(m==='tv') tvEnsure('tvAdv'); else if(smc){ renderSmcChips(); smcRefresh(true); } else { anaInit(); if(anaBars()?.length) anaDraw(true); else { $('ohlc').textContent='Start live to load the analysis chart.'; } } }
 
 // ----- wiring -----
 function wire(){
@@ -58,6 +59,7 @@ function wire(){
   ['feedMode','pollSec','marketSyms'].forEach(id=>$(id).addEventListener('change', ()=>{ readForm(); showCredits(); }));
   $$('[data-chartmode]').forEach(b=>b.onclick=()=>setChartMode(b.dataset.chartmode));
   $('anaTf').value=ANA.tf; $('anaTf').onchange=e=>{ ANA.tf=e.target.value; anaDraw(true); }; renderOverlayChips();
+  $('smcTf').value=SMC.tf; $('smcTf').onchange=e=>{ SMC.tf=e.target.value; smcRefresh(true); }; renderSmcChips();
   $('enteredBtn').onclick=entered; $('closedBtn').onclick=resetPlan; $('exitBtn').onclick=recordExit; $('clearLog').onclick=()=>{ $('log').innerHTML='<div class="muted">Alerts will appear here.</div>'; };
   $('paForm').onsubmit=e=>{ e.preventDefault(); const p=Number($('paPrice').value); if(!p) return; S.priceAlerts.push({id:Date.now(), dir:$('paDir').value, price:p, note:$('paNote').value.trim(), done:false});
     LS.set('goldAiDesk.alerts', S.priceAlerts); $('paPrice').value=''; $('paNote').value=''; renderPA(); toast(S.live?'Price alert added.':'Price alert added. It works while live is on.'); };
