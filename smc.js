@@ -177,9 +177,10 @@ function smcRefresh(force){ const b=smcBars(); if(!b?.length) { renderSmcSig(); 
   if(op && S.live && SMC.ov.alerts && r.i-op.i<=1 && !op.tooRisky && !SMC.seen.has(op.t+op.side)){ SMC.seen.add(op.t+op.side);
     notify(`SMC ${op.side.toUpperCase()} setup (grade ${op.grade}): entry about ${f2(op.entry)}, SL ${f2(op.sl)}, TP ${f2(op.tp)}, R:R 1:${op.rr.toFixed(1)}. Check the chart first.`); }
   if(!$('smcWrap').hidden) smcDraw(force); }
-function smcTick(){ if($('smcWrap').hidden || !SMC.ready || !SMC.res) return; const b=smcBars(), x=b?.at(-1); if(!x) return;
-  try{ SMC.cs.update({time:x.t+OFF, open:x.o, high:x.h, low:x.l, close:x.c}); }catch(e){}
-  if(Date.now()-SMC.lastDraw>1000){ SMC.lastDraw=Date.now(); smcRefresh(false); } }
+function smcTick(){ if($('smcWrap').hidden || !SMC.ready || !SMC.res || SMC.tickQ) return;
+  SMC.tickQ=requestAnimationFrame(()=>{ SMC.tickQ=0; const b=smcBars(), x=b?.at(-1); if(!x) return;
+    try{ SMC.cs.update({time:x.t+OFF, open:x.o, high:x.h, low:x.l, close:x.c}); }catch(e){}
+    if(Date.now()-SMC.lastDraw>1000){ SMC.lastDraw=Date.now(); smcRefresh(false); } }); }
 DATA_HOOKS.push(()=>smcRefresh(false));
 TICK_HOOKS.push(smcTick);
 THEME_HOOKS.push(()=>{ if(SMC.cs){ SMC.cs.applyOptions(candleStyle()); smcOverlay(); } });

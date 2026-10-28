@@ -5,7 +5,7 @@ function refreshAll(){
   renderVerdict(cond); renderTiles($('dCond'), cond);
   const sig=liveSignal(); S.signal=sig; S.cond=cond; autoAiCheck(); renderAiPanel(); renderDashSignal(sig, cond); renderSignalPage(sig, cond); renderChartSig(sig, cond);
   renderMtf(cond.mtf); renderLevels(); renderImMini(); renderIntermarket(); renderEventsMini(); renderSessions($('dSessions')); renderPlanMini(); renderHero(); drawSpark();
-  if(ANA.ready && !$('anaWrap').hidden) anaDraw(false);
+  if(ANA.ready && !$('anaWrap').hidden && (Date.now()-(ANA.lastFull||0)>4000 || (ANA.tf!=='4h' && anaBars()!==ANA.prevB))){ ANA.lastFull=Date.now(); anaDraw(false); }
   if(S.live && cfg.liveSignals && sig?.state==='signal' && Date.now()/1000-sig.bar<1800){ const g=grade(sig,cond);
     if(g!=='Skip' && !S.sigSeen.has(sig.bar+sig.side)){ S.sigHist.unshift({t:sig.bar, side:sig.side, g}); alertOnce(S.sigSeen, sig.bar+sig.side, `LIVE SIGNAL: ${sig.side==='buy'?'Buy':'Sell'} gold, grade ${g}. Entry about ${f2(sig.entry)}, SL ${f2(sig.sl)}, TP ${f2(sig.tp)}. Check the chart first.`); } }
   if(S.live && cond.news.ev){ const e=cond.news.ev, mins=Math.max(0,Math.round((e.t-Date.now())/60e3));

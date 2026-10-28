@@ -68,7 +68,7 @@ function anaDraw(fit){
   if(o.plan && S.plan){ const p=S.plan; pl(p.entry_low,C.gold(),'Entry'); pl(p.entry_high,C.gold(),'Entry'); pl(p.stop_loss,C.down(),'SL',0); pl(p.take_profit,C.up(),'TP',0); pl(p.breakeven_at,'#f0883e','Move SL'); if(S.mon.entry) pl(S.mon.entry,'#8e9bb3','My entry',0); }
   const tagMode = typeof chartMode!=='undefined' && chartMode==='tag';
   if(tagMode) drawTrades(b, o, pl);
-  else { ANA.tsr.forEach(x=>ANA.main.removeSeries(x)); ANA.tsr=[]; ANA.tags=[]; ANA.vl=[]; placeTags();
+  else { ANA.tsr.forEach(x=>ANA.main.removeSeries(x)); ANA.tsr=[]; ANA.tsrSig=''; ANA.tags=[]; ANA.vl=[]; placeTags();
     ANA.candles.setMarkers(o.markers && ANA.tf==='15min' ? signalMarkers(b, S.candles['1h']).map(s=>({time:s.t+OFF, position:s.side==='buy'?'belowBar':'aboveBar', color:s.side==='buy'?C.up():C.down(), shape:s.side==='buy'?'arrowUp':'arrowDown', text:''})) : []); }
   if(fit) ANA.main.timeScale().setVisibleLogicalRange({from:Math.max(0,b.length-160), to:b.length+(tagMode?44:6)}); else viewRestore(ANA.main, snap, b);
   ohlcReadout(null); }
@@ -130,7 +130,8 @@ function drawTrades(b, o, pl){
         if(closeT) vl.push({time:closeT, text:`Close by ${cfg.closeTime}`}); }
     } else if(N){ tag(tl, b.at(-1).c, 'NOW: no setup – wait', 'close', true, 'wait', NP?.id, 'full'); }
   }
-  ANA.tsr.forEach(x=>ANA.main.removeSeries(x)); ANA.tsr=segs.map(g=>{ const [color,w,st]=STY[g.k]; const x=ANA.main.addLineSeries({color, lineWidth:w, lineStyle:st, priceLineVisible:false, lastValueVisible:false, crosshairMarkerVisible:false}); x.setData(g.d); return x; });
+  const sig=JSON.stringify(segs.map(g=>[g.k,g.d[0].time,g.d.at(-1).time,g.d[0].value]));
+  if(sig!==ANA.tsrSig){ ANA.tsrSig=sig; ANA.tsr.forEach(x=>ANA.main.removeSeries(x)); ANA.tsr=segs.map(g=>{ const [color,w,st]=STY[g.k]; const x=ANA.main.addLineSeries({color, lineWidth:w, lineStyle:st, priceLineVisible:false, lastValueVisible:false, crosshairMarkerVisible:false}); x.setData(g.d); return x; }); }
   if(!ANA.tsr.length && F && on){ /* keep space for the future even with no lines */ }
   mk.sort((a,b)=>a.time-b.time); ANA.candles.setMarkers(mk); ANA.tags=tags; ANA.vl=vl; $('tradeLegend').hidden=!on; placeTags(); }
 // HTML alert tags that follow the chart when you scroll or zoom
@@ -143,8 +144,18 @@ function placeTags(){ const L=$('tagLayer'); if(!L || !ANA.ready) return; L.inne
     let left=Math.min(Math.max(x-w/2,2),W-w-2), y=t.up ? y0-h-12 : y0+12;
     for(let k=0;k<6;k++){ const hit=placed.find(r=>left<r.x+r.w+4 && left+w+4>r.x && y<r.y+r.h+3 && y+h+3>r.y); if(!hit) break; y = t.up ? hit.y-h-3 : hit.y+hit.h+3; }
     y=Math.min(Math.max(y,2),H-h); d.style.left=left+'px'; d.style.top=y+'px'; d.style.setProperty('--sx',(x-left)+'px'); placed.push({x:left,y,w,h}); }); }
-function anaTick(){ if(!ANA.ready || $('anaWrap').hidden) return; const b=anaBars(); const x=b?.at(-1); if(!x) return;
-  try{ ANA.candles.update({time:x.t+OFF, open:x.o, high:x.h, low:x.l, close:x.c}); }catch(e){ anaDraw(false); } ohlcReadout(null); }
+// Every price: move the last candle AND the last value of every indicator (cheap), once per screen frame.
+function anaTick(){ if(!ANA.ready || $('anaWrap').hidden || ANA.tickQ) return; ANA.tickQ=requestAnimationFrame(()=>{ ANA.tickQ=0; anaLive(); }); }
+function anaLive(){ const b=anaBars(), x=b?.at(-1); if(!x) return; const T=x.t+OFF, o=ANA.ov;
+  try{ ANA.candles.update({time:T, open:x.o, high:x.h, low:x.l, close:x.c}); }catch(e){ anaDraw(false); return; }
+  const c=b.map(q=>q.c), i=c.length-1, e20=ema(c,20), e50=ema(c,50), e200=i>=199?ema(c,200):[], bb=o.bb?bollinger(c):null, r=rsi(c), m=macd(c);
+  const up=(s,v)=>{ if(s && v!=null && !isNaN(v)) try{ s.update({time:T, value:v}); }catch(_){} };
+  if(o.ema20) up(ANA.e20,e20[i]); if(o.ema50) up(ANA.e50,e50[i]); if(o.ema200) up(ANA.e200,e200[i]);
+  if(bb){ up(ANA.bbU,bb.up[i]); up(ANA.bbM,bb.mid[i]); up(ANA.bbL,bb.lo[i]); }
+  up(ANA.rsiS,r[i]); up(ANA.mL,m.line[i]); up(ANA.mS,m.signal[i]);
+  if(m.hist[i]!=null) try{ ANA.mH.update({time:T, value:m.hist[i], color:m.hist[i]>=0?C.up():C.down()}); }catch(_){}
+  ANA.arr={...ANA.arr, b, e20, e50, r, mh:m.hist}; if(!ANA.idx?.has(T)) ANA.idx?.set(T,i);
+  if(ANA.hoverT==null) ohlcReadout(null); }
 function ohlcReadout(time){ const A=ANA.arr; if(!A.b) return; let i = time!=null ? ANA.idx.get(time) : A.b.length-1; if(i==null) i=A.b.length-1; const x=A.b[i], p=A.b[i-1];
   const box=$('ohlc'); box.innerHTML=''; const add=(k,v,cls)=>{ const s=el('span',null,k+' '); const b=el('b',cls,v); s.appendChild(b); box.appendChild(s); };
   const d=new Date((x.t+OFF)*1000), ds=new Intl.DateTimeFormat('en-GB',{timeZone:'UTC', weekday:'short', day:'2-digit', month:'short', year:'numeric'}).format(d)+' '+d.toISOString().slice(11,16);
