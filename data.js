@@ -45,7 +45,7 @@ function applyToSeries(k, p, ms){ const b=S.candles[k]; if(!b?.length) return; c
   const t=Math.floor(ms/1000/sec)*sec, last=b.at(-1);
   if(last.t===t){ last.c=p; last.h=Math.max(last.h,p); last.l=Math.min(last.l,p); } else if(t>last.t){ b.push({t, o:p, h:p, l:p, c:p}); } }
 function onTick(price, ms=Date.now()){
-  if(!(price>0)) return; S.prevPrice=S.price; S.price=price; S.lastTick=ms;
+  if(!(price>0)) return; S.prevPrice=S.price; S.price=price; S.lastTick=ms; (S.tickTimes=S.tickTimes||[]).push(Date.now()); if(S.tickTimes.length>120) S.tickTimes.shift();
   ['15min','1h','1day'].forEach(k=>applyToSeries(k, price, ms));
   TICK_HOOKS.forEach(f=>{ try{ f(price); }catch(e){ console.error(e); } }); }
 
@@ -57,6 +57,11 @@ function setFeed(state, msg){
   l.textContent = map[state] || state;
   if(['ws','poll'].includes(state) && typeof goldOpen==='function' && !goldOpen()){ f.className='feed warn'; l.textContent='Market closed · prices paused'; f.title='Gold is closed (weekend or daily break). Prices start moving again when the market opens: Monday about 05:00 Cambodia time.'; } }
 setInterval(()=>{ if(S.live && ['ws','poll'].includes(S.feed)) setFeed(S.feed); }, 60e3);
+// how fresh the price is: "2 s ago · 18/min", updated every second
+setInterval(()=>{ const a=$('feedAge'); if(!a) return; if(!S.live || !S.lastTick){ a.textContent=''; return; }
+  const age=Math.max(0,Math.round((Date.now()-S.lastTick)/1000)), per=(S.tickTimes||[]).filter(t=>Date.now()-t<60e3).length;
+  a.textContent=` · ${age<60?age+' s':Math.round(age/60)+' min'} ago · ${per}/min`; a.className='feedage'+(age>45 && goldOpen()?' old':'');
+  a.title=`Last price ${age} seconds ago. ${per} price updates in the last minute. ${S.feed==='poll'?`Price checks run every ${cfg.pollSec} s.`:'Streaming sends a price whenever gold trades.'}`; }, 1000);
 
 // ----- WebSocket stream (Twelve Data). Basic plans may not stream every symbol: then we fall back to polling. -----
 function wsClose(){ const ws=S.ws; S.ws=null; clearInterval(S.timers.hb); try{ ws?.close(); }catch(e){} }

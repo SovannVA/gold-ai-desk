@@ -178,7 +178,7 @@ function smcRefresh(force){ const b=smcBars(); if(!b?.length) { renderSmcSig(); 
   if(!$('smcWrap').hidden) smcDraw(force); }
 function smcTick(){ if($('smcWrap').hidden || !SMC.ready || !SMC.res) return; const b=smcBars(), x=b?.at(-1); if(!x) return;
   try{ SMC.cs.update({time:x.t+OFF, open:x.o, high:x.h, low:x.l, close:x.c}); }catch(e){}
-  if(Date.now()-SMC.lastDraw>5000){ SMC.lastDraw=Date.now(); smcRefresh(false); } }
+  if(Date.now()-SMC.lastDraw>2000){ SMC.lastDraw=Date.now(); smcRefresh(false); } }
 DATA_HOOKS.push(()=>smcRefresh(false));
 TICK_HOOKS.push(smcTick);
 THEME_HOOKS.push(()=>{ if(SMC.cs){ SMC.cs.applyOptions(candleStyle()); smcOverlay(); } });
