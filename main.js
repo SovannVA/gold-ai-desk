@@ -26,7 +26,7 @@ $('dxFs').onclick=()=>fsOpen($('dxWrap'));
 document.querySelectorAll('[data-fsexit]').forEach(b=>b.onclick=fsClose);
 new MutationObserver(()=>{ $('dxFs').hidden=$('dxChart').hidden; }).observe($('dxChart'),{attributes:true, attributeFilter:['hidden']});
 DATA_HOOKS.push(refreshAll);
-TICK_HOOKS.push(renderHero, anaTick, p=>watchPlan(p), p=>checkPriceAlerts(p), ()=>{ if(Date.now()-lastRefresh>2e3) refreshAll(); });
+TICK_HOOKS.push(renderHero, anaTick, p=>watchPlan(p), p=>checkPriceAlerts(p), ()=>{ if(Date.now()-lastRefresh>1e3) refreshAll(); });
 LIVE_HOOKS.push(on=>{ const b=$('liveBtn'); b.classList.toggle('btn-primary', !on); b.classList.toggle('is-live', on); b.innerHTML=`<svg><use href="#i-${on?'stop':'play'}"/></svg><span>${on?'Stop live':'Start live'}</span>`; });
 IMG_HOOKS.push(renderThumbs);
 Object.assign(AI_HOOKS, {cards:renderCards, say, final:renderFinal, pics:renderPics,
@@ -37,6 +37,7 @@ function loadForm(){ FIELDS.forEach(k=>{ const e=$(k); if(!e) return; if(e.type=
 function readForm(){ FIELDS.forEach(k=>{ const e=$(k); if(!e) return; cfg[k] = e.type==='checkbox' ? e.checked : (e.type==='number' || k==='pollSec') ? Number(e.value) : e.value.trim(); }); }
 function saveSettings(){ const before={feedMode:cfg.feedMode, pollSec:cfg.pollSec, symbol:cfg.symbol, tv:cfg.tvSymbol}; readForm(); LS.set(CFG_KEY, cfg); applyTheme(); showCredits(); toast('Settings saved.');
   if(before.tv!==cfg.tvSymbol) Object.keys(TV_STATE).forEach(id=>delete TV_STATE[id]);
+  if(S.live){ if(cfg.fastTicks && !FT.ws) ftConnect(); if(!cfg.fastTicks) ftClose(); }
   if(S.live && (before.feedMode!==cfg.feedMode || before.pollSec!==cfg.pollSec || before.symbol!==cfg.symbol)){ if(before.symbol!==cfg.symbol){ S.candles={}; } stopLive(); startLive(); } else refreshAll(); }
 
 // ----- chart page -----

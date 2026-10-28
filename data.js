@@ -49,6 +49,25 @@ function onTick(price, ms=Date.now()){
   ['15min','1h','1day'].forEach(k=>applyToSeries(k, price, ms));
   TICK_HOOKS.forEach(f=>{ try{ f(price); }catch(e){ console.error(e); } }); }
 
+// ----- fast ticks: Binance PAXG/USDT trades (tokenized gold, free, no key), shifted to Twelve Data's spot price -----
+// PAXG trades many times a second. Its price differs from spot gold by a few dollars, so we measure the gap each time
+// Twelve Data sends a spot price and add it. Fast ticks run only while the gold market is open.
+const FT={ws:null, last:null, offset:null, pend:null, timer:null, tries:0, tdAt:0, tdP:null};
+function tdTick(price, ms){ if(!(price>0)) return; FT.tdAt=Date.now(); FT.tdP=price;
+  if(FT.last && Date.now()-FT.last.at<5000){ const gap=price-FT.last.p; FT.offset = FT.offset==null || Math.abs(gap-FT.offset)>15 ? gap : FT.offset*0.6+gap*0.4; }
+  onTick(price, ms); }
+function ftEmit(){ FT.timer=null; const q=FT.pend; FT.pend=null; if(!q || FT.offset==null || !S.live || !goldOpen()) return;
+  const px=+(q.p+FT.offset).toFixed(2); if(FT.tdP && Math.abs(px-FT.tdP)>12) return;   // guard against a bad gap
+  S.fast=true; onTick(px, q.t); }
+function ftConnect(){ ftClose(); if(!cfg.fastTicks || !S.live) return; let ws;
+  try{ ws=new WebSocket('wss://data-stream.binance.vision:443/ws/paxgusdt@aggTrade'); }catch(e){ return; }
+  FT.ws=ws;
+  ws.onmessage=e=>{ let m; try{ m=JSON.parse(e.data); }catch(_){ return; } const p=Number(m.p); if(!(p>0)) return;
+    FT.last={p, at:Date.now()}; FT.pend={p, t:m.T||Date.now()}; if(!FT.timer) FT.timer=setTimeout(ftEmit, 200); };   // at most 5 updates a second
+  ws.onopen=()=>{ FT.tries=0; };
+  ws.onclose=()=>{ if(FT.ws!==ws) return; FT.ws=null; S.fast=false; if(S.live && cfg.fastTicks && ++FT.tries<=5) setTimeout(()=>{ if(S.live && !FT.ws) ftConnect(); }, 2000*FT.tries); }; }
+function ftClose(){ const ws=FT.ws; FT.ws=null; S.fast=false; try{ ws?.close(); }catch(e){} }
+
 // ----- feed status -----
 function setFeed(state, msg){
   const f=$('feed'), l=$('feedLabel'); if(!f) return; f.className='feed'; f.title=msg||'';
@@ -61,7 +80,9 @@ setInterval(()=>{ if(S.live && ['ws','poll'].includes(S.feed)) setFeed(S.feed); 
 setInterval(()=>{ const a=$('feedAge'); if(!a) return; if(!S.live || !S.lastTick){ a.textContent=''; return; }
   const age=Math.max(0,Math.round((Date.now()-S.lastTick)/1000)), per=(S.tickTimes||[]).filter(t=>Date.now()-t<60e3).length;
   a.textContent=` · ${age<60?age+' s':Math.round(age/60)+' min'} ago · ${per}/min`; a.className='feedage'+(age>45 && goldOpen()?' old':'');
-  a.title=`Last price ${age} seconds ago. ${per} price updates in the last minute. ${S.feed==='poll'?`Price checks run every ${cfg.pollSec} s.`:'Streaming sends a price whenever gold trades.'}`; }, 1000);
+  const fast=FT.ws && FT.offset!=null && goldOpen() && Date.now()-(FT.last?.at||0)<10e3;
+  a.textContent=` · ${age<60?age+' s':Math.round(age/60)+' min'} ago · ${per}/min${fast?' · fast':''}`;
+  a.title=`Last price ${age} seconds ago. ${per} price updates in the last minute. ${fast?`Fast ticks on: moved by PAXG trades, kept in line with Twelve Data spot (gap ${f2(FT.offset)}). Twelve Data spot last came ${Math.round((Date.now()-FT.tdAt)/1000)} s ago.`: S.feed==='poll'?`Price checks run every ${cfg.pollSec} s.`:'Streaming sends a price whenever gold trades.'}`; }, 1000);
 
 // ----- WebSocket stream (Twelve Data). Basic plans may not stream every symbol: then we fall back to polling. -----
 function wsClose(){ const ws=S.ws; S.ws=null; clearInterval(S.timers.hb); try{ ws?.close(); }catch(e){} }
@@ -76,7 +97,7 @@ function wsConnect(){
   ws.onmessage=e=>{ let m; try{ m=JSON.parse(e.data); }catch(_){ return; }
     if(m.event==='subscribe-status'){ clearTimeout(failTimer); ok=true;
       if(m.status!=='ok' || (m.fails||[]).length) fail(`Your Twelve Data plan does not stream ${cfg.symbol}.`); else { S.wsTries=0; setFeed('ws'); } }
-    else if(m.event==='price'){ if(!ok){ ok=true; clearTimeout(failTimer); setFeed('ws'); } onTick(Number(m.price), m.timestamp ? m.timestamp*1000 : Date.now()); } };
+    else if(m.event==='price'){ if(!ok){ ok=true; clearTimeout(failTimer); setFeed('ws'); } tdTick(Number(m.price), m.timestamp ? m.timestamp*1000 : Date.now()); } };
   ws.onclose=()=>{ clearInterval(S.timers.hb); clearTimeout(failTimer); if(S.ws!==ws) return; S.ws=null;
     if(!S.live) return; if(++S.wsTries<=3){ setFeed('connecting'); setTimeout(()=>{ if(S.live && !S.ws && S.feed==='ws') wsConnect(); }, 2000*S.wsTries); }
     else { toast('Streaming disconnected. Using regular price checks.'); startPolling(); } };
@@ -85,7 +106,7 @@ function wsConnect(){
 function stopPolling(){ clearInterval(S.timers.poll); S.timers.poll=null; }
 function startPolling(){
   stopPolling(); S.feed='poll'; setFeed('poll');
-  const run=async()=>{ if(!S.live) return; try{ const j=await td('price', {symbol:cfg.symbol}); onTick(Number(j.price)); setFeed('poll'); }catch(e){ setFeed('error', e.message); } };
+  const run=async()=>{ if(!S.live) return; try{ const j=await td('price', {symbol:cfg.symbol}); tdTick(Number(j.price)); setFeed('poll'); }catch(e){ setFeed('error', e.message); } };
   run(); S.timers.poll=setInterval(run, Math.max(15, +cfg.pollSec)*1000); }
 
 // ----- background refresh: new candles at their boundaries, other markets every 15 min -----
@@ -110,7 +131,8 @@ async function startLive(){
   try{ if(!S.candles['15min']) await loadAll(); }catch(e){ toast('Data error: '+e.message); setFeed('error', e.message); }
   if(!S.live) return;
   if(cfg.feedMode==='ws') wsConnect(); else startPolling();
+  ftConnect();
   clearInterval(S.timers.house); S.timers.house=setInterval(housekeeping, 30000);
   toast('Live on. Keep this page open for alerts.'); }
 const LIVE_HOOKS = [];
-function stopLive(){ S.live=false; stopPolling(); wsClose(); clearInterval(S.timers.house); setFeed('off'); try{ S.wake?.release(); }catch(e){} S.wake=null; LIVE_HOOKS.forEach(f=>f(false)); }
+function stopLive(){ S.live=false; stopPolling(); wsClose(); ftClose(); clearInterval(S.timers.house); setFeed('off'); try{ S.wake?.release(); }catch(e){} S.wake=null; LIVE_HOOKS.forEach(f=>f(false)); }

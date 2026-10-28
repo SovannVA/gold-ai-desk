@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=20">
+<link rel="stylesheet" href="styles.css?v=21">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M6 24 10 10h12l4 14z' fill='%23e3b341'/%3E%3C/svg%3E">
 </head>
 <body>
@@ -434,6 +434,7 @@
               <div><label class="lbl" for="pollSec">Price check every</label><select id="pollSec"><option value="15">15 seconds</option><option value="20">20 seconds</option><option value="30">30 seconds</option><option value="60">60 seconds</option></select></div>
               <div><label class="lbl" for="symbol">Symbol (Twelve Data)</label><input id="symbol"></div>
               <div><label class="lbl" for="tvSymbol">Symbol (TradingView)</label><input id="tvSymbol"></div>
+              <div class="wide"><label class="chk"><input type="checkbox" id="fastTicks">Fast ticks (like MT5): move the price every trade using a free gold-tracking stream (Binance PAXG), kept in line with Twelve Data spot gold</label></div>
               <div class="wide"><label class="lbl" for="marketSyms">Other markets (comma separated, max 8)</label><input id="marketSyms"></div>
             </div>
             <p class="muted small mt" id="budgetNote"></p>
@@ -476,17 +477,17 @@
 </div>
 <div id="toasts" aria-live="polite"></div>
 
-<script src="config.js?v=20"></script>
+<script src="config.js?v=21"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
-<script src="core.js?v=20"></script>
-<script src="ind.js?v=20"></script>
-<script src="data.js?v=20"></script>
-<script src="analysis.js?v=20"></script>
-<script src="charts.js?v=20"></script>
-<script src="ai.js?v=20"></script>
-<script src="views.js?v=20"></script>
-<script src="smc.js?v=20"></script>
-<script src="main.js?v=20"></script>
+<script src="core.js?v=21"></script>
+<script src="ind.js?v=21"></script>
+<script src="data.js?v=21"></script>
+<script src="analysis.js?v=21"></script>
+<script src="charts.js?v=21"></script>
+<script src="ai.js?v=21"></script>
+<script src="views.js?v=21"></script>
+<script src="smc.js?v=21"></script>
+<script src="main.js?v=21"></script>
 </body>
 </html>
