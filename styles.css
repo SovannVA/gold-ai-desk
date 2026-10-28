@@ -141,7 +141,9 @@ details.panel>summary{cursor:pointer;font-family:var(--font-num);font-weight:600
 .sline.swp{border-top:1px dotted var(--info)}
 .stag{position:absolute;font:700 10.5px/1.2 var(--font-num);padding:2px 7px;border-radius:5px;color:#fff;white-space:nowrap;background:#6b778c;box-shadow:0 1px 4px rgba(0,0,0,.25)}
 .stag.sell,.stag.sl{background:var(--down)}.stag.buy,.stag.tp{background:var(--up)}.stag.swp{background:var(--info)}.stag.close{background:#6b778c}
-.smcchecks{margin:0 0 12px}.smcchecks summary{cursor:pointer;font-weight:600}
+.smcchecks{margin:0 0 12px}
+.smcbadge{z-index:6}.smcbadge .cbnums+.cbnums{margin-top:1px}.chartbadge.plan{border-left-color:var(--info)}.chartbadge.plan .cbword{color:var(--info)}
+.sbox.tbox.plan{border-style:dashed;opacity:.75}.stag.plan{background:var(--info)}.stag.plan.zone{background:var(--warn)}.smcchecks summary{cursor:pointer;font-weight:600}
 .info{color:var(--info)}
 .fsopen{margin-left:auto}.dxfsrow{justify-content:flex-end;margin-top:10px}.dxfsrow:has(#dxFs[hidden]){display:none}
 .fsexit{display:none}

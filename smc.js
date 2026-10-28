@@ -83,7 +83,10 @@ function smcAnalyze(b){
     ['Liquidity sweep in the last 12 candles (bonus)', sweeps.some(s=>s.dir===d && i-s.i<=12)],
     ['Confirmation candle closed from the zone', !!setups.find(s=>s.i===i)]];
   const rangeFrom=legStart;
-  return {b, breaks, obs, fvgs, sweeps, pools, setups, trend, range:{hi:rHi, lo:rLo, eq, from:rangeFrom}, poi, open, checks, i, a, price}; }
+  let plan=null;
+  if(!open && d && poi){ const entry = d<0 ? poi.bot : poi.top, sl = d<0 ? poi.top+0.1*a : poi.bot-0.1*a, tp = d<0 ? rLo : rHi, risk=Math.abs(entry-sl), rr=risk>0?Math.abs(tp-entry)/risk:0;
+    if((d<0 ? tp<entry : tp>entry) && rr>=1) plan={dir:d, side:d>0?'buy':'sell', entry, sl, tp, risk, rr, tooRisky:risk>maxDist()+1e-9, atZone:checks[2][1]}; }
+  return {b, breaks, obs, fvgs, sweeps, pools, setups, trend, range:{hi:rHi, lo:rLo, eq, from:rangeFrom}, poi, open, plan, checks, i, a, price}; }
 
 function smcStats(r){ const done=r.setups.filter(s=>s.exit!=null); const w=done.filter(s=>s.pnl>0.01).length;
   return {n:done.length, w, rate:done.length?w/done.length*100:0, netR:done.reduce((s,x)=>s+x.r,0), net$:done.reduce((s,x)=>s+usd(x.pnl),0)}; }
@@ -99,14 +102,28 @@ function smcInfo(r){
       msg: fresh ? `Grade ${op.grade}${op.swept?' (liquidity swept first)':''}. Enter near ${f2(op.entry)}, SL ${f2(op.sl)}, TP ${f2(op.tp)} at the liquidity target. R:R 1:${op.rr.toFixed(1)}. Check the candle, set SL and TP in MT5.`
         : op.be ? `SL already at entry, so no risk now. Hold for TP ${f2(op.tp)}. Close by ${cfg.closeTime} if still open.` : `Hold. At ${f2(op.entry+op.dir*op.risk)} move SL to entry. Close at TP ${f2(op.tp)} or SL ${f2(op.sl)}, or by ${cfg.closeTime}.`}; }
   const c=r.checks, d=r.trend;
-  if(d && c[2][1]) return {word:`${d<0?'SELL':'BUY'} ZONE · WAIT`, kind:'wait', msg:`Price is at the ${d<0?'bearish':'bullish'} order block. Wait for a ${d<0?'red':'green'} candle to close back ${d<0?'down':'up'} from it before entering.`};
-  if(d && r.poi) return {word:'WAIT', kind:'idle', msg:`Structure is ${d<0?'down: look for SELLS':'up: look for BUYS'}. Next zone: ${d<0?'bearish':'bullish'} order block ${f2(r.poi.bot)}–${f2(r.poi.top)}. Wait for price to come back to it.`};
+  const P=r.plan;
+  if(P && P.atZone) return {word:`${nm(P.side)} ZONE · WAIT`, kind:'wait', plan:P, msg:`Price is at the ${d<0?'bearish':'bullish'} order block. Wait for a ${d<0?'red':'green'} candle to close back ${d<0?'down':'up'} from it, then ${nm(P.side)}. Planned SL ${f2(P.sl)}, TP ${f2(P.tp)} (R:R 1:${P.rr.toFixed(1)}).${P.tooRisky?' ⚠ SL is wider than your risk limit.':''}`};
+  if(P) return {word:`PLAN: ${nm(P.side)}`, kind:'idle', plan:P, msg:`Structure is ${d<0?'down':'up'}: look for ${d<0?'SELLS':'BUYS'} only. Wait for price to come back to the ${d<0?'bearish':'bullish'} order block ${f2(r.poi.bot)}–${f2(r.poi.top)} and a confirmation candle. Planned entry ${f2(P.entry)}, SL ${f2(P.sl)}, TP ${f2(P.tp)} (R:R 1:${P.rr.toFixed(1)}).${P.tooRisky?' ⚠ SL is wider than your risk limit.':''} Not an order yet.`};
+  if(d && r.poi) return {word:'WAIT', kind:'idle', msg:`Structure is ${d<0?'down: look for SELLS':'up: look for BUYS'}. Next zone: ${d<0?'bearish':'bullish'} order block ${f2(r.poi.bot)}–${f2(r.poi.top)}, but there is not enough room to the target yet.`};
   return {word:'WAIT', kind:'idle', msg: d ? `Structure is ${d<0?'down':'up'}, but there is no fresh order block to trade from. Wait for the next BOS.` : 'Structure is not clear yet. Wait for a BOS or CHoCH.'}; }
 function renderSmcSig(){ const box=$('smcSig'); if(!box) return; const r=SMC.res, I=smcInfo(r); clear(box); box.className='sigbar '+I.kind;
   box.append(el('span','sigword',I.word), el('span','sigmsg',I.msg));
-  if(I.op){ const n=el('div','signums'); [['Entry',I.op.entry],['Stop loss',I.op.sl],['Take profit',I.op.tp]].forEach(([k,v])=>{ const q=el('div'); q.append(el('span','small muted',k), el('b',null,f2(v))); n.appendChild(q); }); box.appendChild(n); }
+  const lv=I.op||I.plan; if(lv){ const n=el('div','signums'); [[I.plan?'Plan entry':'Entry',lv.entry],['Stop loss',lv.sl],['Take profit',lv.tp],['R:R','1:'+lv.rr.toFixed(1)]].forEach(([k,v])=>{ const q=el('div'); q.append(el('span','small muted',k), el('b',null,typeof v==='number'?f2(v):v)); n.appendChild(q); }); box.appendChild(n); }
+  renderSmcBadge(I);
   const ck=$('smcChecks'); if(ck){ clear(ck); (r?.checks||[]).forEach(([t,ok])=>{ const c=el('div','check '+(ok?'ok':'no')); c.append(el('span','ic',ok?'✓':''), el('span',null,t)); ck.appendChild(c); });
     if(r){ const s=smcStats(r); ck.appendChild(el('div','small muted mt', `SMC setups in the loaded data (${SMC.tf==='1h'?'1 hour':'15 min'}, about ${Math.round(r.b.length*smcSec()/86400)} days): ${s.n} finished, ${s.w} won (${s.rate.toFixed(0)}%), total ${s.netR>=0?'+':''}${s.netR.toFixed(1)}R (${s.net$>=0?'+$':'−$'}${f2(Math.abs(s.net$))} at your lot). Small sample: test more before trusting it.`)); } } }
+
+// ----- status box on the chart -----
+function renderSmcBadge(I){ const bd=$('smcBadge'); if(!bd) return; clear(bd); const lv=I.op||I.plan;
+  bd.className='chartbadge smcbadge '+(I.kind==='idle' && I.plan ? 'plan' : I.kind); bd.appendChild(el('div','cbword', I.word));
+  if(lv){ bd.appendChild(el('div','cbnums', `${I.plan?'Plan entry':'Entry'} ${f2(lv.entry)} · SL ${f2(lv.sl)} · TP ${f2(lv.tp)} · R:R 1:${lv.rr.toFixed(1)}`));
+    bd.appendChild(el('div','cbnums', I.op ? (I.op.be?'SL moved to entry: no risk':`Move SL to entry at ${f2(I.op.entry+I.op.dir*I.op.risk)}`) : 'Wait for the confirmation candle')); }
+  else bd.appendChild(el('div','cbnums', I.msg.length>90 ? I.msg.slice(0,88)+'…' : I.msg));
+  smcPriceLines(lv, !!I.plan); }
+function smcPriceLines(lv, plan){ if(!SMC.cs) return; (SMC.plines||[]).forEach(l=>SMC.cs.removePriceLine(l)); SMC.plines=[]; if(!lv) return;
+  const pl=(price,color,title)=>SMC.plines.push(SMC.cs.createPriceLine({price, color, lineWidth:1, lineStyle:2, lineVisible:false, axisLabelVisible:true, title}));
+  const nm=lv.side==='buy'?'BUY':'SELL'; pl(lv.entry, lv.side==='buy'?C.up():C.down(), (plan?'Plan ':'')+nm); pl(lv.sl, C.down(), 'SL'); pl(lv.tp, C.up(), 'TP'); }
 
 // ----- chart -----
 function smcInit(){ if(SMC.ready || !window.LightweightCharts) return SMC.ready; const node=$('smcChart'); if(!node) return false;
@@ -119,7 +136,7 @@ function smcDraw(fit){ const r=SMC.res; if(!smcInit() || !r) return; const b=r.b
   const mk=[]; if(SMC.ov.past || SMC.ov.boxes) r.setups.forEach(s=>{ if(!SMC.ov.past && s!==r.open) return; mk.push({time:b[s.i].t+OFF, position:s.dir>0?'belowBar':'aboveBar', color:s.dir>0?C.up():C.down(), shape:s.dir>0?'arrowUp':'arrowDown'}); });
   SMC.cs.setMarkers(mk);
   if(fit) SMC.ch.timeScale().setVisibleLogicalRange({from:Math.max(0,b.length-170), to:b.length+18});
-  smcOverlay(); }
+  renderSmcBadge(smcInfo(r)); smcOverlay(); }
 function smcOverlay(){ const L=$('smcLayer'); if(!L || !SMC.ready || !SMC.res || $('smcWrap').hidden) return; L.innerHTML='';
   const r=SMC.res, b=r.b, n=b.length, ts=SMC.ch.timeScale(), W=ts.width(), H=$('smcChart').clientHeight-26, ov=SMC.ov;
   const X=i=>ts.logicalToCoordinate(i), Y=p=>SMC.cs.priceToCoordinate(p);
@@ -137,6 +154,9 @@ function smcOverlay(){ const L=$('smcLayer'); if(!L || !SMC.ready || !SMC.res ||
   if(ov.structure) r.breaks.slice(-10).forEach(k=>hline(k.from, k.to, k.p, 'brk '+(k.dir>0?'bull':'bear')+(k.kind==='CHoCH'?' choch':''), k.kind, k.dir<0));
   if(ov.liq){ r.pools.forEach(q=>hline(q.from, right, q.p, 'liq '+(q.dir>0?'bsl':'ssl'), (q.eq?(q.dir>0?'EQH ':'EQL '):'')+'$$$ '+(q.dir>0?'buy stops':'sell stops'), q.dir<0));
     r.sweeps.slice(-4).forEach(s=>{ hline(s.from, s.i, s.p, 'swp', ''); tagAt(s.i, s.p, 'SWEEP', 'swp', s.dir<0); }); }
+  if(ov.boxes && r.plan && !r.open){ const P=r.plan, i0=n-1, i1=right;
+    box(i0, i1, P.entry, P.tp, 'tbox win plan', `TP ${f2(P.tp)}`); box(i0, i1, P.entry, P.sl, 'tbox loss plan', `SL ${f2(P.sl)}`);
+    tagAt(i0+3, P.dir<0?P.sl:P.sl, `PLAN ${P.side==='buy'?'BUY':'SELL'} @ ${f2(P.entry)}${P.tooRisky?' ⚠':''}`, P.atZone?'plan zone':'plan', P.dir<0); }
   if(ov.boxes){ const list=r.setups.filter(s=>ov.past || s===r.open).slice(-6);
     list.forEach(s=>{ const end=s.exitI ?? right, nm=s.dir>0?'BUY':'SELL';
       box(s.i, end, s.entry, s.tp, 'tbox win', s===r.open||s===list.at(-1) ? `TP ${f2(s.tp)}` : '');
