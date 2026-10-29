@@ -45,12 +45,17 @@ function saveSettings(){ const before={feedMode:cfg.feedMode, pollSec:cfg.pollSe
 let chartMode=LS.get('goldAiDesk.chartMode','lb');
 // one-time switch to the tested strategy: old signal alerts off, London Breakout on
 if(!LS.get('goldAiDesk.lbMigrated', false)){ cfg.liveSignals=false; cfg.lbAlerts=true; if(!cfg.lbMode) cfg.lbMode='short'; LS.set(CFG_KEY, cfg); SMC.ov.alerts=false; LS.set('goldAiDesk.smcOv', SMC.ov); chartMode='lb'; LS.set('goldAiDesk.lbMigrated', true); }
+// honest test results of the learning charts, per holding style (2017, 2018 H1, Sep–Oct 2026, costs included)
+const OLD_PF={smc:{short:'0.36–0.96', long:'0.27–0.83', auto:'0.45–0.69'}, tag:{short:'0.58–0.79', long:'0.33–1.07', auto:'0.33–1.08'}};
+function renderOldWarn(){ const ow=$('oldWarn'); if(!ow) return; const m=chartMode, h=holdMode(); ow.hidden=!(m==='tag'||m==='smc'); if(ow.hidden) return;
+  const what = m==='smc' ? 'these SMC rules' : 'the 5-check signal shown here', pf=OLD_PF[m][h];
+  ow.textContent = `Warning: when tested on real gold data (2017, 2018, Sep–Oct 2026) ${what} lost money with every holding style (${HOLD_NAMES[h]}: profit factor ${pf}; below 1.0 means a loss). Holding longer does not fix bad entries. Use this chart for learning only. For trading, use ★ London Breakout.`; }
 function setChartMode(m){ chartMode=m; LS.set('goldAiDesk.chartMode', m);
   $$('[data-chartmode]').forEach(b=>b.setAttribute('aria-selected', b.dataset.chartmode===m?'true':'false'));
   const tag=m==='tag', ana=m==='ana'||m==='tag', smc=m==='smc'; $('tvAdvWrap').hidden=m!=='tv'; $('anaWrap').hidden=!ana; $('anaTools').hidden=!ana;
   ['smcWrap','smcTools','smcSig','smcCheckBox'].forEach(id=>{ if($(id)) $(id).hidden=!smc; });
   const lb=m==='lb'; ['lbWrap','lbTools','lbSig','lbInfoBox'].forEach(id=>{ if($(id)) $(id).hidden=!lb; });
-  const ow=$('oldWarn'); ow.hidden=!(tag||smc); ow.textContent = smc ? 'Warning: when tested on real gold data (2017, 2018, Sep–Oct 2026) these SMC rules lost money (profit factor 0.36–0.96). Use this chart for learning only. For trading, use ★ London Breakout.' : 'Warning: when tested on real gold data (2017, 2018, Sep–Oct 2026) the 5-check signal shown here lost money (profit factor 0.54–0.82). Use this chart for learning only. For trading, use ★ London Breakout.';
+  $('holdBar').hidden=!(lb||tag||smc); renderHoldBar(); renderOldWarn();
   ['chartSig','aiCheck','tagChips','tagLayer','anaBadge','tradeLegend'].forEach(id=>{ if($(id)) $(id).hidden=!tag; }); renderOverlayChips(); renderAiPanel();
   if(m==='tv') tvEnsure('tvAdv'); else if(lb){ lbSetMode(lbMode()); lbRefresh(false); } else if(smc){ renderSmcChips(); smcRefresh(false); } else { anaInit(); if(anaBars()?.length) anaDraw(false); else { $('ohlc').textContent='Start live to load the analysis chart.'; } } }
 

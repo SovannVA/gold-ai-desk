@@ -73,13 +73,16 @@ function anaDraw(fit){
   if(fit) ANA.main.timeScale().setVisibleLogicalRange({from:Math.max(0,b.length-160), to:b.length+(tagMode?44:6)}); else viewRestore(ANA.main, snap, b);
   ohlcReadout(null); }
 let CT={key:'', r:null};
-function chartTrades(){ const b=S.candles['15min']; if(!b || b.length<60) return null; const x=b.at(-1), key=b.length+'|'+x.t+'|'+x.c+'|'+x.h+'|'+x.l+'|'+(S.candles['1h']?.length||0);
-  if(CT.key!==key){ CT={key, r:backtest(b, S.candles['1h']||[], {spread:0.3, be:true, window:false, skip:false, closedOnly:true, mkt:true})}; } return CT.r; }
+function chartTrades(){ const b=S.candles['15min']; if(!b || b.length<60) return null; const x=b.at(-1), key=b.length+'|'+x.t+'|'+x.c+'|'+x.h+'|'+x.l+'|'+(S.candles['1h']?.length||0)+'|'+holdMode();
+  if(CT.key!==key){ CT={key, r:backtest(b, S.candles['1h']||[], {spread:0.3, be:true, window:false, skip:false, closedOnly:true, mkt:true, hold:holdMode()})}; } return CT.r; }
+function tagRefreshHold(){ CT.key=''; if(typeof anaDraw==='function' && ANA.ready && !$('anaWrap').hidden) anaDraw(false); if(typeof renderChartSig==='function' && S.signal) renderChartSig(S.signal, S.cond||conditions()); }
+// hold style for a signal that has not been entered yet (Auto looks at the 15 min EMA 200)
+function sigHold(sg){ if(!sg) return 'short'; const t=holdTrend(S.candles['15min']); return holdPick(holdMode(), sg.side==='buy'?1:-1, sg.entry, t?.e); }
 const usdTxt=v=>(v>=0?'+$':'−$')+f2(Math.abs(usd(v)));
-function pastPoint(tr){ return {id:`${tr.side}-${tr.t}`, scope:'past', side:tr.side, entry:tr.entry, sl:tr.sl0, tp:tr.tp, be:tr.beAt, t:tr.t-900, label:`entered ${khStamp((tr.t)*1000)} (past trade)`, outcome:`${tr.why}, result ${usdTxt(tr.pnl)}`}; }
+function pastPoint(tr){ return {id:`${tr.side}-${tr.t}`, scope:'past', side:tr.side, entry:tr.entry, sl:tr.sl0, tp:tr.tp, be:tr.beAt, t:tr.t-900, label:`entered ${khStamp((tr.t)*1000)} (past trade)`, outcome:`${tr.why}, result ${usdTxt(tr.pnl)}`, hold:tr.hold}; }
 function nowPoint(){ const bt=chartTrades(), op=bt?.open, sg=S.signal;
   if(op){ const now=S.price||S.candles['15min']?.at(-1)?.c, pnl=(now-op.entry)*op.dir;
-    return {id:`${op.side}-${op.t}`, scope:'now', side:op.side, entry:op.entry, sl:op.sl0, tp:op.tp, be:op.beAt, t:op.t-900, open:true, label:`open trade since ${khTime(op.t*1000)} Cambodia time`, extra:`Current price ${f2(now)}, open result ${usdTxt(pnl)}.${op.be?' The stop loss has already been moved to entry.':''}`}; }
+    return {id:`${op.side}-${op.t}`, scope:'now', side:op.side, entry:op.entry, sl:op.sl0, tp:op.tp, be:op.beAt, t:op.t-900, open:true, label:`open trade since ${khTime(op.t*1000)} Cambodia time (${HOLD_NAMES[op.hold]})`, extra:`Current price ${f2(now)}, open result ${usdTxt(pnl)}.${op.be?' The stop loss has already been moved to entry.':''}${op.hold==='long'?` Long line: no fixed TP, trailing stop now ${f2(op.sl)}.`:''}`, hold:op.hold}; }
   if(sg && sg.state==='signal') return {id:`sig-${sg.side}-${sg.bar}`, scope:'now', side:sg.side, entry:sg.entry, sl:sg.sl, tp:sg.tp, be:sg.be, t:sg.bar, label:'new signal on the last closed 15 min candle (not entered yet)'};
   if(sg && sg.state==='forming') return {id:`form-${sg.side}-${sg.bar}`, scope:'now', side:sg.side, entry:sg.entry, sl:sg.sl, tp:sg.tp, be:sg.be, t:sg.bar, forming:true, label:`setup forming, 4 of 5 checks (missing: ${sg.checks.filter(c=>!c[1]).map(c=>c[0]).join(', ')})`};
   if(sg && sg.entry!=null) return {id:`mkt-${sg.side}-${sg.bar}`, scope:'now', market:true, side:sg.side, entry:sg.entry, sl:sg.sl, tp:sg.tp, be:sg.be, t:sg.bar, label:`no setup yet (${sg.n} of 5 checks for a ${sg.side}). Question: should the trader wait, or prepare a ${sg.side} at these levels`};
@@ -102,32 +105,38 @@ function drawTrades(b, o, pl){
       if(pt) ANA.points[pt.id]=pt; const rk=tr.tooRisky; tag(t+OFF, tr.entry, `${pre}${nm(tr.side)} ${f2(tr.entry)}${rk?` · SL ${f2(Math.abs(tr.entry-tr.sl0))} away, over your ${f2(maxDist())} limit: skip or smaller lot`:''}`, tr.side, tr.side!=='buy', pre+nm(tr.side)+(rk?' ⚠':''), pt?.id, 'full'); };
     const be=tr=>{ if(!tr.beT) return; const t=tr.beT-step; mk.push({time:t+OFF, position:'inBar', color:'#e9a23b', shape:'circle'}); tag(t+OFF, tr.beAt, 'Move SL → entry', 'be', tr.side==='buy', 'BE'); };
     if(P) bt.trades.forEach((tr,j)=>{ const t1=tr.t-step+OFF, t2=tr.exitT-step+OFF, q=j%2; entry(tr,'',pastPoint(tr)); be(tr);
-      seg('tE'+q,t1,t2,tr.entry); seg('tS'+q,t1,t2,tr.sl0); seg('tT'+q,t1,t2,tr.tp);
-      const k = tr.why==='Take profit' ? ['tp','TP hit '+usd$(tr.pnl),'TP '+usd$(tr.pnl)] : tr.why==='Stop loss' ? ['sl','SL hit '+usd$(tr.pnl),'SL '+usd$(tr.pnl)] : tr.why==='Breakeven' ? ['close','Closed at entry $0','$0'] : tr.why==='Market closed' ? ['close','Closed before market close '+usd$(tr.pnl),'Close '+usd$(tr.pnl)] : ['close','Closed '+usd$(tr.pnl),usd$(tr.pnl)];
+      seg('tE'+q,t1,t2,tr.entry); seg('tS'+q,t1,t2,tr.sl0); if(tr.tp!=null) seg('tT'+q,t1,t2,tr.tp);
+      const k = tr.why==='Trailing stop' ? [tr.pnl>=0?'tp':'sl','Trailing stop '+usd$(tr.pnl),'Trail '+usd$(tr.pnl)] : tr.why==='Closed after 24 hours' ? ['close','Closed after 24 h '+usd$(tr.pnl),'24h '+usd$(tr.pnl)] : tr.why==='Take profit' ? ['tp','TP hit '+usd$(tr.pnl),'TP '+usd$(tr.pnl)] : tr.why==='Stop loss' ? ['sl','SL hit '+usd$(tr.pnl),'SL '+usd$(tr.pnl)] : tr.why==='Breakeven' ? ['close','Closed at entry $0','$0'] : tr.why==='Market closed' ? ['close','Closed before market close '+usd$(tr.pnl),'Close '+usd$(tr.pnl)] : ['close','Closed '+usd$(tr.pnl),usd$(tr.pnl)];
       mk.push({time:t2, position:'inBar', color:k[0]==='tp'?C.up():k[0]==='sl'?C.down():'#8e9bb3', shape:k[0]==='tp'?'circle':'square'});
       tag(t2, tr.exit, k[1], k[0], tr.side==='buy' ? k[0]==='tp' : k[0]!=='tp', k[2]); });
     const op=bt.open, tl=last+OFF, f=fut(40).map(t=>t+OFF);
     const closeT=f.find(t=>khTime((t-OFF)*1000)===cfg.closeTime);
     const NP=nowPoint(); if(NP) ANA.points[NP.id]=NP;
     if(op){ const t1=op.t-step+OFF, now=S.price||b.at(-1).c, pnl=(now-op.entry)*op.dir;
-      if(N){ entry(op,'▶ ',NP); be(op); const q=bt.trades.length%2; seg('tE'+q,t1,tl,op.entry); seg('tS'+q,t1,tl,op.sl0); seg('tT'+q,t1,tl,op.tp);
+      const lg=op.hold==='long';
+      if(N){ entry(op,'▶ ',NP); be(op); const q=bt.trades.length%2; seg('tE'+q,t1,tl,op.entry); seg('tS'+q,t1,tl,op.sl0); if(!lg) seg('tT'+q,t1,tl,op.tp);
         mk.push({time:tl, position:'inBar', color:pnl>=0?C.up():C.down(), shape:'circle'});
         tag(tl, now, `NOW: ${nm(op.side)} open ${usd$(pnl)}`, pnl>=0?'tp':'sl', true, `NOW ${usd$(pnl)}`, NP?.id);
-        pl(op.entry,col(op.side),'Entry',0,false); pl(op.sl,C.down(),op.be?'SL (at entry)':'SL',0,false); pl(op.tp,C.up(),'TP',0,false); if(!op.be) pl(op.beAt,'#e9a23b','Move SL',2,false); }
-      if(F){ fseg('fE',tl,f,op.entry); fseg('fS',tl,f,op.sl); fseg('fT',tl,f,op.tp); if(!op.be) fseg('fB',tl,f,op.beAt);
+        pl(op.entry,col(op.side),'Entry',0,false); pl(op.sl,C.down(),lg?(op.trailing?'Trail':'SL'):op.be?'SL (at entry)':'SL',0,false); if(lg) pl(op.target,'#8e9bb3','Target (guide)',2,false); else { pl(op.tp,C.up(),'TP',0,false); if(!op.be) pl(op.beAt,'#e9a23b','Move SL',2,false); } }
+      if(F && lg){ fseg('fE',tl,f,op.entry); fseg('fS',tl,f,op.sl);
+        tag(f[14], op.sl, `Trailing stop ${f2(op.sl)}: move your MT5 stop here. It follows the price every 15 min.`, 'sl', op.side==='buy', 'Trail', NP?.id, 'sym');
+        tag(f[26], op.target, `Long line: no TP. ${f2(op.target)} is only a guide`, 'be', op.side==='sell', 'Guide', NP?.id, 'sym');
+        const endT=op.t-step+24*3600+OFF; if(f.includes(endT) || (endT>tl && endT<=f.at(-1))) vl.push({time:f.find(t=>t>=endT), text:'Close after 24 h'}); }
+      else if(F){ fseg('fE',tl,f,op.entry); fseg('fS',tl,f,op.sl); fseg('fT',tl,f,op.tp); if(!op.be) fseg('fB',tl,f,op.beAt);
         const tf=f[14];
         tag(tf, op.tp, `Close here: TP ${f2(op.tp)} (+$${f2(usd(Math.abs(op.tp-op.entry)))})`, 'tp', op.side==='sell', 'TP', NP?.id, 'sym');
         tag(tf, op.sl, `Close here: SL ${f2(op.sl)}${op.be?' ($0)':' (−$'+f2(usd(Math.abs(op.sl-op.entry)))+')'}`, 'sl', op.side==='buy', 'SL', NP?.id, 'sym');
         if(!op.be) tag(f[26], op.beAt, `Price ${f2(op.beAt)} → move SL to entry`, 'be', op.side==='sell', 'Move SL', NP?.id, 'sym');
         if(closeT) vl.push({time:closeT, text:`Close by ${cfg.closeTime}`}); }
-    } else if(sg && sg.state!=='none'){ const c=sg.state==='signal'?col(sg.side):'#e9a23b', x=bar(sg.bar);
+    } else if(sg && sg.state!=='none'){ const c=sg.state==='signal'?col(sg.side):'#e9a23b', x=bar(sg.bar), lg=sigHold(sg)==='long';
       if(N){ mk.push({time:sg.bar+OFF, position:pos(sg.side), color:c, shape:sg.state==='signal'?arr(sg.side):'circle'});
         tag(sg.bar+OFF, sg.side==='buy'?(x?.l??sg.entry):(x?.h??sg.entry), sg.state==='signal'?`NOW: ${nm(sg.side)} ${f2(sg.entry)}`:`NOW: ${nm(sg.side)} forming 4/5 – wait`, sg.state==='signal'?sg.side:'be', sg.side!=='buy', sg.state==='signal'?'NOW '+nm(sg.side):'4/5 wait', NP?.id, 'full');
-        pl(sg.entry,c,(sg.state==='signal'?'':'If ')+nm(sg.side),2,false); pl(sg.sl,C.down(),'SL',2,false); pl(sg.tp,C.up(),'TP',2,false); }
-      if(F){ fseg('fE',tl,f,sg.entry); fseg('fS',tl,f,sg.sl); fseg('fT',tl,f,sg.tp); fseg('fB',tl,f,sg.be);
-        const pre=sg.state==='signal'?'':'If triggered: ';
+        pl(sg.entry,c,(sg.state==='signal'?'':'If ')+nm(sg.side),2,false); pl(sg.sl,C.down(),'SL',2,false); if(!lg) pl(sg.tp,C.up(),'TP',2,false); }
+      if(F){ const pre=sg.state==='signal'?'':'If triggered: '; fseg('fE',tl,f,sg.entry); fseg('fS',tl,f,sg.sl);
+        if(lg){ tag(f[14], sg.sl, `${pre}SL ${f2(sg.sl)}, then trail it (Long line, no TP)`, 'sl', sg.side==='buy', 'SL→trail', NP?.id, 'sym'); }
+        else { fseg('fT',tl,f,sg.tp); fseg('fB',tl,f,sg.be);
         tag(f[14], sg.tp, `${pre}TP ${f2(sg.tp)}`, 'tp', sg.side==='sell', 'TP', NP?.id, 'sym'); tag(f[14], sg.sl, `${pre}SL ${f2(sg.sl)}`, 'sl', sg.side==='buy', 'SL', NP?.id, 'sym'); tag(f[26], sg.be, `Move SL → entry at ${f2(sg.be)}`, 'be', sg.side==='sell', 'Move SL', NP?.id, 'sym');
-        if(closeT) vl.push({time:closeT, text:`Close by ${cfg.closeTime}`}); }
+        if(closeT) vl.push({time:closeT, text:`Close by ${cfg.closeTime}`}); } }
     } else if(N){ tag(tl, b.at(-1).c, 'NOW: no setup – wait', 'close', true, 'wait', NP?.id, 'full'); }
   }
   const sig=JSON.stringify(segs.map(g=>[g.k,g.d[0].time,g.d.at(-1).time,g.d[0].value]));

@@ -16,6 +16,28 @@ const DEFAULTS = {
   enClaude:true, enGemini:true, enDeepseek:true, discuss:true, aiAuto:true, aiSearch:true, liveSignals:true, notif:false, sound:true
 };
 const FIELDS = Object.keys(DEFAULTS);
+// ----- holding style shared by every strategy chart: Short-term or Long line -----
+// short: fixed take profit, stop to entry at 1R (SMC and 5-check only), close the same day.
+// long: no fixed take profit, the stop trails the price (trail x ATR of the chart timeframe), close after 24 h or before the weekend.
+const HOLDX = {short:{be:true}, long:{trail:6, hours:24}};
+const holdMode = () => ['long','auto'].includes(cfg.lbMode) ? cfg.lbMode : 'short';
+const HOLD_EMA = 200;   // Auto: a trade in the direction of the 15 min EMA 200 is held Long line, a trade against it is Short-term
+const holdPick = (mode, dir, price, e) => mode!=='auto' ? mode : (e!=null && Math.sign(price-e)===dir ? 'long' : 'short');
+const HOLD_NAMES = {short:'Short-term', long:'Long line', auto:'Auto (case by case)'};
+// trend check used by Auto and by the hold advisor: closes of the 15 min chart vs their EMA 200
+function holdTrend(b){ b=(b||[]).filter(x=>x && x.c!=null); if(b.length<50) return null; const e=ema(b.map(x=>x.c), HOLD_EMA).at(-1), p=S.price||b.at(-1).c;
+  return {dir:Math.sign(p-e)||1, e, p, gap:p-e, warm:b.length>=HOLD_EMA}; }
+// one candle of trade management; returns [exitPrice, reason] or null. Trail moves on the candle close (no peeking).
+function holdStep(pos, x, a, mode, sec, beOff, i, isClosed=true){ const d=pos.dir;
+  if(d>0 ? x.l<=pos.sl : x.h>=pos.sl) return [pos.sl, pos.trailing ? 'Trailing stop' : pos.be ? 'Breakeven' : 'Stop loss'];
+  if(mode!=='long'){ if(pos.tp!=null && (d>0 ? x.h>=pos.tp : x.l<=pos.tp)) return [pos.tp, 'Take profit'];
+    if(HOLDX.short.be && !pos.be && (d>0 ? x.h>=pos.entry+pos.risk : x.l<=pos.entry-pos.risk)){ pos.be=true; pos.sl=pos.entry+d*beOff; }
+    return null; }
+  if(!isClosed) return null;                                  // live candle: only the stop can be hit
+  pos.bars=(pos.bars||0)+1; const ns=x.c-d*HOLDX.long.trail*a;
+  if(d>0 ? ns>pos.sl : ns<pos.sl){ pos.sl=ns; pos.trailing=true; (pos.trail ||= []).push([i, ns]); }
+  if(pos.bars*sec>=HOLDX.long.hours*3600) return [x.c, 'Closed after 24 hours'];
+  return null; }
 let cfg = {...DEFAULTS, ...LS.get(CFG_KEY, {})};
 
 const S = {

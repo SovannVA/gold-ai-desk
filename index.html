@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=25">
+<link rel="stylesheet" href="styles.css?v=26">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M6 24 10 10h12l4 14z' fill='%23e3b341'/%3E%3C/svg%3E">
 </head>
 <body>
@@ -162,13 +162,17 @@
             <div class="chips" id="ovChips"></div>
           </div>
           <div class="toolbar-r" id="lbTools" hidden>
-            <div class="seg" role="tablist" aria-label="Strategy mode"><button role="tab" data-lbmode="short" aria-selected="true">Short-term</button><button role="tab" data-lbmode="long" aria-selected="false">Long line</button></div>
             <button class="btn btn-sm" type="button" id="lbHist" title="Loads about 7 weeks of 15 min candles (1 Twelve Data credit) and tests the strategy on them">Test on 7 weeks</button>
           </div>
           <div class="toolbar-r" id="smcTools" hidden>
             <select id="smcTf" aria-label="SMC timeframe"><option value="15min">15 min</option><option value="1h">1 hour</option></select>
             <div class="chips" id="smcChips"></div>
           </div>
+        </div>
+        <div class="panel holdbar" id="holdBar" hidden>
+          <div class="holdrow"><span class="lbl">Holding style</span>
+            <div class="seg" role="tablist" aria-label="Holding style"><button role="tab" data-lbmode="short" aria-selected="true">Short-term</button><button role="tab" data-lbmode="long" aria-selected="false">Long line</button><button role="tab" data-lbmode="auto" aria-selected="false">Auto (case by case)</button></div></div>
+          <div id="holdInfo" class="mt"></div>
         </div>
         <div class="sigbar idle" id="lbSig" aria-live="polite" hidden><span class="sigword">WAIT</span><span class="sigmsg">Press Start live to load prices.</span></div>
         <div class="panel lbinfo" id="lbInfoBox" hidden><div id="lbStats"></div>
@@ -178,6 +182,7 @@
             <li><b>Stop loss:</b> the other side of the range. Do not move it to entry (tests showed that lowers results).</li>
             <li><b>Short-term:</b> take profit at 1.5 × the range size; close anything still open at 23:00 Cambodia time.</li>
             <li><b>Long line:</b> no fixed take profit; trailing stop 6 × ATR(15 min) that only moves in your favour; close after 24 hours or before the weekend.</li>
+            <li><b>Auto (case by case):</b> at the end of the range the desk checks the trend (price above or below the 15 min EMA 200). The order that goes WITH the trend gets no TP and a trailing stop (Long line). The order that goes AGAINST the trend gets the 1.5 × TP and closes the same day (Short-term).</li>
             <li><b>One trade per day.</b> Size the lot so the stop loss costs at most your risk % (the desk shows the lot).</li>
           </ol></details></div>
         <div class="notice oldwarn" id="oldWarn" hidden></div>
@@ -445,7 +450,7 @@
               <div><label class="lbl" for="balance">Balance ($)</label><input id="balance" type="number" step="1"></div>
               <div><label class="lbl" for="lot">Lot size</label><input id="lot" type="number" step="0.01"></div>
               <div><label class="lbl" for="riskPct">Max risk per trade (%)</label><input id="riskPct" type="number" step="0.5"></div>
-              <div><label class="lbl" for="lbMode">London Breakout mode</label><select id="lbMode"><option value="short">Short-term (TP 1.5R, close same day)</option><option value="long">Long line (trailing stop, up to 24 h)</option></select></div>
+              <div><label class="lbl" for="lbMode">London Breakout mode</label><select id="lbMode"><option value="short">Short-term (TP 1.5R, close same day)</option><option value="long">Long line (trailing stop, up to 24 h)</option><option value="auto">Auto: long with the trend, short against it</option></select></div>
               <div><label class="lbl" for="newsBuffer">No entries before high-impact news (min)</label><input id="newsBuffer" type="number" step="5" min="0"></div>
               <div><label class="lbl" for="winStart">Trading window starts</label><input id="winStart" type="time"></div>
               <div><label class="lbl" for="closeTime">Close all trades by</label><input id="closeTime" type="time"></div>
@@ -502,18 +507,18 @@
 </div>
 <div id="toasts" aria-live="polite"></div>
 
-<script src="config.js?v=25"></script>
+<script src="config.js?v=26"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
-<script src="core.js?v=25"></script>
-<script src="ind.js?v=25"></script>
-<script src="data.js?v=25"></script>
-<script src="analysis.js?v=25"></script>
-<script src="charts.js?v=25"></script>
-<script src="ai.js?v=25"></script>
-<script src="views.js?v=25"></script>
-<script src="smc.js?v=25"></script>
-<script src="strategy.js?v=25"></script>
-<script src="main.js?v=25"></script>
+<script src="core.js?v=26"></script>
+<script src="ind.js?v=26"></script>
+<script src="data.js?v=26"></script>
+<script src="analysis.js?v=26"></script>
+<script src="charts.js?v=26"></script>
+<script src="ai.js?v=26"></script>
+<script src="views.js?v=26"></script>
+<script src="smc.js?v=26"></script>
+<script src="strategy.js?v=26"></script>
+<script src="main.js?v=26"></script>
 </body>
 </html>

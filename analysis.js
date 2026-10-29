@@ -113,15 +113,16 @@ function bestHours(b){ const grid={}; const days=['Mon','Tue','Wed','Thu','Fri']
   return {days, cell, max}; }
 
 // ----- backtest of the live signal -----
-function backtest(b, h1, o){
-  const c=b.map(x=>x.c), A={e20:ema(c,20), r:rsi(c), a:atr(b)}, e50=ema(c,50), hc=h1.map(x=>x.c), he20=ema(hc,20), he50=ema(hc,50);
+function backtest(b, h1, o){ const hm=o.hold||'short', keepBe=HOLDX.short.be; HOLDX.short.be=!!o.be;
+  const c=b.map(x=>x.c), A={e20:ema(c,20), r:rsi(c), a:atr(b)}, e50=ema(c,50), E=ema(c,HOLD_EMA), hc=h1.map(x=>x.c), he20=ema(hc,20), he50=ema(hc,50);
   const trades=[]; let pos=null, hj=0;
   for(let i=60;i<b.length;i++){ const x=b[i], tEnd=x.t+900;
     if(pos){ const d=pos.dir; let exit=null, why='';
-      if(d>0 ? x.l<=pos.sl : x.h>=pos.sl){ exit=pos.sl; why=pos.be?'Breakeven':'Stop loss'; }
-      else if(d>0 ? x.h>=pos.tp : x.l<=pos.tp){ exit=pos.tp; why='Take profit'; }
-      else { if(o.be && !pos.be && (d>0 ? x.h>=pos.beAt : x.l<=pos.beAt)){ pos.be=true; pos.beT=tEnd; pos.sl=pos.entry+d*o.spread; }
-        if(o.window && !inWindow(tEnd*1000)){ exit=x.c; why='Close time'; }
+      const isClosed=!o.closedOnly || tEnd<=Date.now()/1000+5, wasBe=pos.be;
+      const st=holdStep(pos, x, A.a[i], pos.hold, 900, o.spread, i, isClosed); if(st) [exit, why]=st;
+      if(pos.be && !wasBe) pos.beT=tEnd;
+      if(exit==null){
+        if(o.window && pos.hold!=='long' && !inWindow(tEnd*1000)){ exit=x.c; why='Close time'; }
         if(o.mkt && !goldOpen(new Date(tEnd*1000)) && ['Fri','Sat','Sun'].includes(localParts('America/New_York',new Date(tEnd*1000)).wd)){ exit=x.c; why='Market closed'; } }
       if(exit!=null){ const pnl=(exit-pos.entry)*d-o.spread; trades.push({...pos, exit, exitT:tEnd, why, pnl, r:pnl/pos.risk, usd:usd(pnl)}); pos=null; }
       continue; }
@@ -131,7 +132,9 @@ function backtest(b, h1, o){
     if(o.mkt && (!goldOpen(new Date(tEnd*1000)) || !goldOpen(new Date(tEnd*1000+3600e3)))) continue;
     const s=signalCore(b,i,A,up); if(s.n!==5) continue;
     if(o.window && !inWindow(tEnd*1000)) continue; if(o.skip && s.tooRisky) continue;
-    pos={dir:s.side==='buy'?1:-1, side:s.side, entry:s.entry, sl:s.sl, sl0:s.sl, tp:s.tp, beAt:s.be, risk:s.risk, tooRisky:s.tooRisky, t:tEnd, be:false}; }
+    const dir=s.side==='buy'?1:-1, h=holdPick(hm, dir, s.entry, E[i]);
+    pos={dir, side:s.side, entry:s.entry, sl:s.sl, sl0:s.sl, tp:h==='long'?null:s.tp, target:s.tp, hold:h, withTrend:Math.sign(s.entry-E[i])===dir, beAt:h==='long'?null:s.be, risk:s.risk, tooRisky:s.tooRisky, t:tEnd, i, be:false}; }
+  HOLDX.short.be=keepBe;
   let eq=0, peak=0, dd=0, gw=0, gl=0; const curve=[];
   trades.forEach(tr=>{ eq+=tr.usd; peak=Math.max(peak,eq); dd=Math.min(dd,eq-peak); if(tr.usd>0) gw+=tr.usd; else gl+=tr.usd; curve.push({t:tr.exitT, v:eq}); });
   const wins=trades.filter(x=>x.usd>0).length;

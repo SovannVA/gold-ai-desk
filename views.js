@@ -28,6 +28,7 @@ function renderTiles(node, c){ clear(node); c.tiles.forEach(x=>{ const d=el('div
 function sigPillText(sig, g){ return !sig ? ['–',''] : sig.state==='signal' ? [`${sig.side==='buy'?'Buy':'Sell'} signal · grade ${g}`, g==='Skip'?'wait':sideKind(sig.side)] : sig.state==='forming' ? [`${sig.side==='buy'?'Buy':'Sell'} forming 4/5`,'wait'] : ['No signal','']; }
 function chartSigInfo(sig, cond, op){
   if(op){ const nm=op.side==='buy'?'BUY':'SELL', now=S.price||S.candles['15min']?.at(-1)?.c, pnl=now!=null?(now-op.entry)*op.dir:0, $p=(pnl>=0?'+$':'−$')+f2(Math.abs(usd(pnl)));
+    if(op.hold==='long') return {word:`${nm} OPEN ${$p}`, kind:op.side, msg:`${holdMode()==='auto'?`Auto picked Long line (${op.withTrend?'with':'against'} the trend). `:''}Long line: no fixed TP. Trailing stop now ${f2(op.sl)}: move your MT5 stop to it. Close if it is hit, after 24 hours, or before the weekend.`, nums:[['Entry',op.entry],[op.trailing?'Trailing stop':'Stop loss',op.sl],['Target (guide)',op.target]]};
     const plan = op.be ? `Stop loss is already at entry, so no risk now. Hold for TP ${f2(op.tp)}.` : `Hold. When price reaches ${f2(op.beAt)}, move SL to entry ${f2(op.entry)}. Close at TP ${f2(op.tp)} or SL ${f2(op.sl)}.`;
     if(op.tooRisky) return {word:`${nm} · OVER RISK`, kind:'wait', msg:`The desk's ${nm} signal has a stop loss ${f2(Math.abs(op.entry-op.sl0))} away, more than your limit of ${f2(maxDist())}. Skip it, or use a smaller lot. Levels shown for learning only.`, nums:[['Entry',op.entry],['Stop loss',op.sl],['Take profit',op.tp]]};
     return {word:`${nm} OPEN ${$p}`, kind:op.side, msg:`${plan} Close by ${cfg.closeTime} if it is still open.`, nums:[['Entry',op.entry],[op.be?'SL (at entry)':'Stop loss',op.sl],['Move SL at',op.be?null:op.beAt],['Take profit',op.tp]]}; }
@@ -36,7 +37,8 @@ function chartSigInfo(sig, cond, op){
   if(sig.state==='signal'){
     if(g==='Skip') return {word:side+' · NO TRADE', kind:'wait', msg:`${side} signal, but conditions say Avoid: ${cond.why}.`};
     if(g==='C') return {word:side+' · WEAK', kind:'wait', msg:`${side} signal, grade C. Other markets or timeframes disagree. Better to skip.`};
-    return {word:side, kind:sig.side, msg:`${side} signal, grade ${g}. Conditions ${v.toLowerCase()}. Check the candle, then enter with SL and TP set in MT5.`}; }
+    const lg=typeof sigHold==='function' && sigHold(sig)==='long';
+    return {word:side, kind:sig.side, msg:`${side} signal, grade ${g}. Conditions ${v.toLowerCase()}. Check the candle, then enter with ${lg?'SL set in MT5 and no TP (Long line: trail the stop)':'SL and TP set in MT5'}.`, nums: lg?[['Entry',sig.entry],['Stop loss',sig.sl]]:null}; }
   if(sig.state==='forming') return {word:side+' FORMING', kind:'wait', msg:`4 of 5 checks met. Waiting for: ${sig.checks.filter(c=>!c[1]).map(c=>c[0].toLowerCase()).join(', ')}. Don't enter yet.`};
   return {word:'WAIT', kind:'idle', msg:`No setup now (${sig.n} of 5 checks for a ${sig.side==='buy'?'buy':'sell'}). Wait.`}; }
 function renderChartBadge(id, sig, info){ const bd=$(id); if(!bd) return; clear(bd); bd.className='chartbadge '+info.kind;

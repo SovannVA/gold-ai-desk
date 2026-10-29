@@ -11,7 +11,7 @@ function smcSec(){ return SMC.tf==='1h' ? 3600 : 900; }
 
 function smcAnalyze(b){
   const n=b?.length||0; if(n<60) return null;
-  const A=atr(b), sec=smcSec(), now=Date.now()/1000, closed=i=>b[i].t+sec<=now+5;
+  const A=atr(b), E=ema(b.map(q=>q.c), HOLD_EMA), sec=smcSec(), now=Date.now()/1000, closed=i=>b[i].t+sec<=now+5;
   const sw=swings(b, SMC_K), ev=[...sw.hi.map(s=>({...s,type:'H'})), ...sw.lo.map(s=>({...s,type:'L'}))].sort((x,y)=>x.i-y.i);
   const breaks=[], obs=[], fvgs=[], sweeps=[], setups=[], H=[], L=[];
   let trend=0, lastH=null, lastL=null, e=0, legStart=0, pos=null;
@@ -39,10 +39,8 @@ function smcAnalyze(b){
     for(const s of H.slice(-6)){ if(s.swept || s.broken || s.i+SMC_K>i || s.i>=i) continue; if(x.h>s.p && x.c<s.p && isClosed){ s.swept=true; sweeps.push({dir:-1, i, p:s.p, from:s.i}); } }
     for(const s of L.slice(-6)){ if(s.swept || s.broken || s.i+SMC_K>i || s.i>=i) continue; if(x.l<s.p && x.c>s.p && isClosed){ s.swept=true; sweeps.push({dir:1, i, p:s.p, from:s.i}); } }
     // --- manage the open simulated trade ---
-    if(pos){ const d=pos.dir; let exit=null, why='';
-      if(d>0 ? x.l<=pos.sl : x.h>=pos.sl){ exit=pos.sl; why=pos.be?'Breakeven':'Stop loss'; }
-      else if(d>0 ? x.h>=pos.tp : x.l<=pos.tp){ exit=pos.tp; why='Take profit'; }
-      else if(!pos.be && (d>0 ? x.h>=pos.entry+pos.risk : x.l<=pos.entry-pos.risk)){ pos.be=true; pos.beI=i; pos.sl=pos.entry+d*0.3; }
+    if(pos){ const d=pos.dir, hm=pos.hold; let exit=null, why='';
+      const st=holdStep(pos, x, a, hm, sec, 0.3, i, isClosed); if(st) [exit, why]=st;
       if(exit==null && !goldOpen(new Date((x.t+sec)*1000)) && ['Fri','Sat','Sun'].includes(localParts('America/New_York',new Date((x.t+sec)*1000)).wd)){ exit=x.c; why='Market closed'; }
       if(exit!=null){ pos.exit=exit; pos.exitI=i; pos.why=why; pos.pnl=(exit-pos.entry)*d-0.3; pos.r=pos.pnl/pos.risk; pos=null; }
       continue; }
@@ -60,7 +58,7 @@ function smcAnalyze(b){
     if(rr<SMC_MIN_RR || risk<=0) continue;
     const swept = sweeps.some(s=>s.dir===d && i-s.i<=12);
     o.used=true;
-    const st={dir:d, side:d>0?'buy':'sell', i, t:x.t, entry, sl, sl0:sl, tp, risk, rr, swept, grade:swept?'A':'B', ob:o, tooRisky:risk>maxDist()+1e-9, be:false};
+    const hm=holdPick(holdMode(), d, x.c, E[i]), st={dir:d, side:d>0?'buy':'sell', i, t:x.t, entry, sl, sl0:sl, tp: hm==='long'?null:tp, target:tp, hold:hm, withTrend:Math.sign(x.c-E[i])===d, risk, rr, swept, grade:swept?'A':'B', ob:o, tooRisky:risk>maxDist()+1e-9, be:false};
     setups.push(st); pos=st; }
   // liquidity pools: the latest unbroken swing highs and lows, with equal highs and lows marked
   const a=A.at(-1)||1, tol=0.15*a, pools=[], pNow=S.price||b[n-1].c;
@@ -85,7 +83,8 @@ function smcAnalyze(b){
   const rangeFrom=legStart;
   let plan=null;
   if(!open && d && poi){ const entry = d<0 ? poi.bot : poi.top, sl = d<0 ? poi.top+0.1*a : poi.bot-0.1*a, tp = d<0 ? rLo : rHi, risk=Math.abs(entry-sl), rr=risk>0?Math.abs(tp-entry)/risk:0;
-    if((d<0 ? tp<entry : tp>entry) && rr>=1) plan={dir:d, side:d>0?'buy':'sell', entry, sl, tp, risk, rr, tooRisky:risk>maxDist()+1e-9, atZone:checks[2][1]}; }
+    const hold=holdPick(holdMode(), d, price, E.at(-1));
+    if((d<0 ? tp<entry : tp>entry) && rr>=1) plan={dir:d, side:d>0?'buy':'sell', entry, sl, tp, risk, rr, hold, tooRisky:risk>maxDist()+1e-9, atZone:checks[2][1]}; }
   return {b, breaks, obs, fvgs, sweeps, pools, setups, trend, range:{hi:rHi, lo:rLo, eq, from:rangeFrom}, poi, open, plan, checks, i, a, price}; }
 
 function smcStats(r){ const done=r.setups.filter(s=>s.exit!=null); const w=done.filter(s=>s.pnl>0.01).length;
@@ -98,18 +97,23 @@ function smcInfo(r){
   if(op){ const now=r.price, pnl=(now-op.entry)*op.dir;
     if(op.tooRisky) return {word:`SMC ${nm(op.side)} · OVER RISK`, kind:'wait', msg:`Stop loss is ${f2(op.risk)} away, more than your ${f2(maxDist())} limit. Skip, or use a smaller lot.`, op};
     const fresh = r.i-op.i<=1;
-    return {word: fresh?`SMC ${nm(op.side)} NOW`:`SMC ${nm(op.side)} OPEN ${(pnl>=0?'+$':'−$')+f2(Math.abs(usd(pnl)))}`, kind:op.side, op,
-      msg: fresh ? `Grade ${op.grade}${op.swept?' (liquidity swept first)':''}. Enter near ${f2(op.entry)}, SL ${f2(op.sl)}, TP ${f2(op.tp)} at the liquidity target. R:R 1:${op.rr.toFixed(1)}. Check the candle, set SL and TP in MT5.`
-        : op.be ? `SL already at entry, so no risk now. Hold for TP ${f2(op.tp)}. Close by ${cfg.closeTime} if still open.` : `Hold. At ${f2(op.entry+op.dir*op.risk)} move SL to entry. Close at TP ${f2(op.tp)} or SL ${f2(op.sl)}, or by ${cfg.closeTime}.`}; }
+    const auto=holdMode()==='auto' ? `Auto picked ${HOLD_NAMES[op.hold]} (${op.withTrend?'with':'against'} the EMA 200 trend). ` : '';
+    const msg = op.hold==='long'
+      ? (fresh ? `${auto}Grade ${op.grade}${op.swept?' (liquidity swept first)':''}. Enter near ${f2(op.entry)}, SL ${f2(op.sl)}. Long line: no fixed TP. The liquidity target ${f2(op.target)} is only a level to watch; let the trailing stop take you out.`
+               : `${auto}Hold and let it run. Trailing stop now ${f2(op.sl)}: move your MT5 stop to it. First target ${f2(op.target)} is only a guide. Close if the stop is hit, after 24 hours, or before the weekend.`)
+      : (fresh ? `${auto}Grade ${op.grade}${op.swept?' (liquidity swept first)':''}. Enter near ${f2(op.entry)}, SL ${f2(op.sl)}, TP ${f2(op.tp)} at the liquidity target. R:R 1:${op.rr.toFixed(1)}. Check the candle, set SL and TP in MT5.`
+               : op.be ? `${auto}SL already at entry, so no risk now. Hold for TP ${f2(op.tp)}. Close by ${cfg.closeTime} if still open.` : `${auto}Hold. At ${f2(op.entry+op.dir*op.risk)} move SL to entry. Close at TP ${f2(op.tp)} or SL ${f2(op.sl)}, or by ${cfg.closeTime}.`);
+    return {word: fresh?`SMC ${nm(op.side)} NOW`:`SMC ${nm(op.side)} OPEN ${(pnl>=0?'+$':'−$')+f2(Math.abs(usd(pnl)))}`, kind:op.side, op, msg}; }
   const c=r.checks, d=r.trend;
   const P=r.plan;
-  if(P && P.atZone) return {word:`${nm(P.side)} ZONE · WAIT`, kind:'wait', plan:P, msg:`Price is at the ${d<0?'bearish':'bullish'} order block. Wait for a ${d<0?'red':'green'} candle to close back ${d<0?'down':'up'} from it, then ${nm(P.side)}. Planned SL ${f2(P.sl)}, TP ${f2(P.tp)} (R:R 1:${P.rr.toFixed(1)}).${P.tooRisky?' ⚠ SL is wider than your risk limit.':''}`};
-  if(P) return {word:`PLAN: ${nm(P.side)}`, kind:'idle', plan:P, msg:`Structure is ${d<0?'down':'up'}: look for ${d<0?'SELLS':'BUYS'} only. Wait for price to come back to the ${d<0?'bearish':'bullish'} order block ${f2(r.poi.bot)}–${f2(r.poi.top)} and a confirmation candle. Planned entry ${f2(P.entry)}, SL ${f2(P.sl)}, TP ${f2(P.tp)} (R:R 1:${P.rr.toFixed(1)}).${P.tooRisky?' ⚠ SL is wider than your risk limit.':''} Not an order yet.`};
+  const tpw=P ? (P.hold==='long' ? `no fixed TP (Long line: trailing stop, first target ${f2(P.tp)})` : `TP ${f2(P.tp)}`) : '';
+  if(P && P.atZone) return {word:`${nm(P.side)} ZONE · WAIT`, kind:'wait', plan:P, msg:`Price is at the ${d<0?'bearish':'bullish'} order block. Wait for a ${d<0?'red':'green'} candle to close back ${d<0?'down':'up'} from it, then ${nm(P.side)}. Planned SL ${f2(P.sl)}, ${tpw} (R:R 1:${P.rr.toFixed(1)}).${P.tooRisky?' ⚠ SL is wider than your risk limit.':''}`};
+  if(P) return {word:`PLAN: ${nm(P.side)}`, kind:'idle', plan:P, msg:`Structure is ${d<0?'down':'up'}: look for ${d<0?'SELLS':'BUYS'} only. Wait for price to come back to the ${d<0?'bearish':'bullish'} order block ${f2(r.poi.bot)}–${f2(r.poi.top)} and a confirmation candle. Planned entry ${f2(P.entry)}, SL ${f2(P.sl)}, ${tpw} (R:R 1:${P.rr.toFixed(1)}).${P.tooRisky?' ⚠ SL is wider than your risk limit.':''} Not an order yet.`};
   if(d && r.poi) return {word:'WAIT', kind:'idle', msg:`Structure is ${d<0?'down: look for SELLS':'up: look for BUYS'}. Next zone: ${d<0?'bearish':'bullish'} order block ${f2(r.poi.bot)}–${f2(r.poi.top)}, but there is not enough room to the target yet.`};
   return {word:'WAIT', kind:'idle', msg: d ? `Structure is ${d<0?'down':'up'}, but there is no fresh order block to trade from. Wait for the next BOS.` : 'Structure is not clear yet. Wait for a BOS or CHoCH.'}; }
 function renderSmcSig(){ const box=$('smcSig'); if(!box) return; const r=SMC.res, I=smcInfo(r); clear(box); box.className='sigbar '+I.kind;
   box.append(el('span','sigword',I.word), el('span','sigmsg',I.msg));
-  const lv=I.op||I.plan; if(lv){ const n=el('div','signums'); [[I.plan?'Plan entry':'Entry',lv.entry],['Stop loss',lv.sl],['Take profit',lv.tp],['R:R','1:'+lv.rr.toFixed(1)]].forEach(([k,v])=>{ const q=el('div'); q.append(el('span','small muted',k), el('b',null,typeof v==='number'?f2(v):v)); n.appendChild(q); }); box.appendChild(n); }
+  const lv=I.op||I.plan; if(lv){ const n=el('div','signums'); [[I.plan?'Plan entry':'Entry',lv.entry],[lv.trailing?'Trailing stop':'Stop loss',lv.sl],...(lv.hold==='long'?[['Target (guide)',lv.target??lv.tp],['Hold','Long line']]:[['Take profit',lv.tp],['R:R','1:'+lv.rr.toFixed(1)]])].forEach(([k,v])=>{ const q=el('div'); q.append(el('span','small muted',k), el('b',null,typeof v==='number'?f2(v):v)); n.appendChild(q); }); box.appendChild(n); }
   renderSmcBadge(I);
   const ck=$('smcChecks'); if(ck){ clear(ck); (r?.checks||[]).forEach(([t,ok])=>{ const c=el('div','check '+(ok?'ok':'no')); c.append(el('span','ic',ok?'✓':''), el('span',null,t)); ck.appendChild(c); });
     if(r){ const s=smcStats(r); ck.appendChild(el('div','small muted mt', `SMC setups in the loaded data (${SMC.tf==='1h'?'1 hour':'15 min'}, about ${Math.round(r.b.length*smcSec()/86400)} days): ${s.n} finished, ${s.w} won (${s.rate.toFixed(0)}%), total ${s.netR>=0?'+':''}${s.netR.toFixed(1)}R (${s.net$>=0?'+$':'−$'}${f2(Math.abs(s.net$))} at your lot). Small sample: test more before trusting it.`)); } } }
@@ -117,13 +121,13 @@ function renderSmcSig(){ const box=$('smcSig'); if(!box) return; const r=SMC.res
 // ----- status box on the chart -----
 function renderSmcBadge(I){ const bd=$('smcBadge'); if(!bd) return; clear(bd); const lv=I.op||I.plan;
   bd.className='chartbadge smcbadge '+(I.kind==='idle' && I.plan ? 'plan' : I.kind); bd.appendChild(el('div','cbword', I.word));
-  if(lv){ bd.appendChild(el('div','cbnums', `${I.plan?'Plan entry':'Entry'} ${f2(lv.entry)} · SL ${f2(lv.sl)} · TP ${f2(lv.tp)} · R:R 1:${lv.rr.toFixed(1)}`));
-    bd.appendChild(el('div','cbnums', I.op ? (I.op.be?'SL moved to entry: no risk':`Move SL to entry at ${f2(I.op.entry+I.op.dir*I.op.risk)}`) : 'Wait for the confirmation candle')); }
+  if(lv){ const lg=lv.hold==='long'; bd.appendChild(el('div','cbnums', `${I.plan?'Plan entry':'Entry'} ${f2(lv.entry)} · ${lv.trailing?'Trail':'SL'} ${f2(lv.sl)} · ${lg?`Target ${f2(lv.target??lv.tp)} (guide)`:`TP ${f2(lv.tp)}`} · ${HOLD_NAMES[lv.hold||'short']}`));
+    bd.appendChild(el('div','cbnums', I.op ? (lg ? 'Long line: move your stop to the trail line' : I.op.be?'SL moved to entry: no risk':`Move SL to entry at ${f2(I.op.entry+I.op.dir*I.op.risk)}`) : 'Wait for the confirmation candle')); }
   else bd.appendChild(el('div','cbnums', I.msg.length>90 ? I.msg.slice(0,88)+'…' : I.msg));
   smcPriceLines(lv, !!I.plan); }
 function smcPriceLines(lv, plan){ if(!SMC.cs) return; (SMC.plines||[]).forEach(l=>SMC.cs.removePriceLine(l)); SMC.plines=[]; if(!lv) return;
   const pl=(price,color,title)=>SMC.plines.push(SMC.cs.createPriceLine({price, color, lineWidth:1, lineStyle:2, lineVisible:false, axisLabelVisible:true, title}));
-  const nm=lv.side==='buy'?'BUY':'SELL'; pl(lv.entry, lv.side==='buy'?C.up():C.down(), (plan?'Plan ':'')+nm); pl(lv.sl, C.down(), 'SL'); pl(lv.tp, C.up(), 'TP'); }
+  const nm=lv.side==='buy'?'BUY':'SELL', lg=lv.hold==='long'; pl(lv.entry, lv.side==='buy'?C.up():C.down(), (plan?'Plan ':'')+nm); pl(lv.sl, C.down(), lv.trailing?'Trail':'SL'); pl(lv.target??lv.tp, C.up(), lg?'Target':'TP'); }
 
 // ----- chart -----
 function smcInit(){ if(SMC.ready || !window.LightweightCharts) return SMC.ready; const node=$('smcChart'); if(!node) return false;
@@ -156,14 +160,17 @@ function smcOverlay(){ const L=$('smcLayer'); if(!L || !SMC.ready || !SMC.res ||
   if(ov.liq){ r.pools.forEach(q=>hline(q.from, right, q.p, 'liq '+(q.dir>0?'bsl':'ssl'), (q.eq?(q.dir>0?'EQH ':'EQL '):'')+'$$$ '+(q.dir>0?'buy stops':'sell stops'), q.dir<0));
     r.sweeps.slice(-4).forEach(s=>{ hline(s.from, s.i, s.p, 'swp', ''); tagAt(s.i, s.p, 'SWEEP', 'swp', s.dir<0); }); }
   if(ov.boxes && r.plan && !r.open){ const P=r.plan, i0=n-1, i1=right;
-    box(i0, i1, P.entry, P.tp, 'tbox win plan', `TP ${f2(P.tp)}`); box(i0, i1, P.entry, P.sl, 'tbox loss plan', `SL ${f2(P.sl)}`);
+    box(i0, i1, P.entry, P.tp, 'tbox win plan'+(P.hold==='long'?' guide':''), P.hold==='long'?`Target ${f2(P.tp)} (guide)`:`TP ${f2(P.tp)}`); box(i0, i1, P.entry, P.sl, 'tbox loss plan', `SL ${f2(P.sl)}`);
     tagAt(i0+3, P.dir<0?P.sl:P.sl, `PLAN ${P.side==='buy'?'BUY':'SELL'} @ ${f2(P.entry)}${P.tooRisky?' ⚠':''}`, P.atZone?'plan zone':'plan', P.dir<0); }
   if(ov.boxes){ const list=r.setups.filter(s=>ov.past || s===r.open).slice(-6);
     list.forEach(s=>{ const end=s.exitI ?? right, nm=s.dir>0?'BUY':'SELL';
-      box(s.i, end, s.entry, s.tp, 'tbox win', s===r.open||s===list.at(-1) ? `TP ${f2(s.tp)}` : '');
-      box(s.i, end, s.entry, s.sl, 'tbox loss', s===r.open||s===list.at(-1) ? `SL ${f2(s.sl)}` : '');
+      const lab=s===r.open||s===list.at(-1);
+      if(s.tp!=null) box(s.i, end, s.entry, s.tp, 'tbox win', lab ? `TP ${f2(s.tp)}` : '');
+      box(s.i, end, s.entry, s.sl0, 'tbox loss', lab ? `SL ${f2(s.sl0)}` : '');
+      if(s.hold==='long'){ if(s===r.open) hline(s.i, end, s.target, 'lbtrail guide', `Target ${f2(s.target)} (guide)`);
+        (s.trail||[]).forEach(([j,v],k,a)=>hline(j, a[k+1]?.[0] ?? end, v, 'lbtrail', k===a.length-1&&s===r.open?'Trail':'')); }
       tagAt(s.i, s.dir>0?Math.min(s.sl,b[s.i].l):Math.max(s.sl,b[s.i].h), `SMC ${nm}${s.tooRisky?' ⚠':''} ${s.grade}`, s.side, s.dir<0);
-      if(s.exitI!=null){ const k=s.why==='Take profit'?'tp':s.why==='Stop loss'?'sl':'close', t=s.why==='Take profit'?`TP ${s.pnl>=0?'+':'−'}$${f2(Math.abs(usd(s.pnl)))}`:s.why==='Stop loss'?`SL −$${f2(Math.abs(usd(s.pnl)))}`:s.why==='Breakeven'?'Exit at entry':`Closed ${s.pnl>=0?'+':'−'}$${f2(Math.abs(usd(s.pnl)))}`;
+      if(s.exitI!=null){ const k=s.why==='Take profit'?'tp':s.why==='Stop loss'?'sl':'close', t=s.why==='Take profit'?`TP ${s.pnl>=0?'+':'−'}$${f2(Math.abs(usd(s.pnl)))}`:s.why==='Stop loss'?`SL −$${f2(Math.abs(usd(s.pnl)))}`:s.why==='Breakeven'?'Exit at entry':s.why==='Trailing stop'?`Trail ${s.pnl>=0?'+':'−'}$${f2(Math.abs(usd(s.pnl)))}`:`Closed ${s.pnl>=0?'+':'−'}$${f2(Math.abs(usd(s.pnl)))}`;
         tagAt(s.exitI, s.exit, t, k, s.dir>0 ? k==='tp' : k!=='tp'); } }); }
   $('smcLegend').hidden=false; }
 
