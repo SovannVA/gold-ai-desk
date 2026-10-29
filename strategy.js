@@ -7,9 +7,9 @@
 // Auto (case by case): each order is held Long line when it goes WITH the 15 min EMA 200 trend, Short-term when it goes against it.
 // Tested 2017, 2018 and Sep–Oct 2026 (15 min candles, costs included). See README for the numbers.
 const LBX = {rangeStart:8*60, rangeLen:30, lastEntry:15*60, tpR:1.5, exitUTC:16, trail:6, maxBars:96};
-const LB_STATS = {short:{label:'Short-term', pf:'1.02–1.29', win:'46–54%', avgR:'+0.01 to +0.16R', trades:'about 5 a week', note:'Small edge: high spreads can erase it.'},
-                  long:{label:'Long line', pf:'1.17–1.88', win:'24–33%', avgR:'+0.17 to +0.64R', trades:'about 4 a week', note:'Strongest in tests, but most trades are small losses and a few big wins pay for them. Deepest losing runs.'},
-                  auto:{label:'Auto (case by case)', pf:'1.08–1.60', win:'36–44%', avgR:'+0.06 to +0.40R', trades:'about 4–5 a week', note:'In between: more profit than Short-term and smaller losing runs than Long line. Trades with the trend are held long, trades against it take the quick profit.'}};
+const LB_STATS = {short:{label:'Short-term', pf:'1.02–1.29', win:'46–54%', avgR:'+0.01 to +0.16R', trades:'about 5 a week', streak:7, note:'Small edge: high spreads can erase it.'},
+                  long:{label:'Long line', pf:'1.17–1.88', win:'24–33%', avgR:'+0.17 to +0.64R', trades:'about 4 a week', streak:20, note:'Strongest in tests, but most trades are small losses and a few big wins pay for them. Deepest losing runs.'},
+                  auto:{label:'Auto (case by case)', pf:'1.08–1.60', win:'36–44%', avgR:'+0.06 to +0.40R', trades:'about 4–5 a week', streak:14, note:'In between: more profit than Short-term and smaller losing runs than Long line. Trades with the trend are held long, trades against it take the quick profit.'}};
 const LB = {res:null, ready:false, seen:new Set(LS.get('goldAiDesk.lbSeen', [])), long:null, longAt:0};
 const lbMode = holdMode;
 const LDN_FMT = new Intl.DateTimeFormat('en-GB', {timeZone:'Europe/London', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', hourCycle:'h23'});
@@ -85,7 +85,7 @@ function lbInfo(r){
       const tpTxt=(h,tp)=>h==='short'?`, TP ${f(tp)}`:', no TP: trail the stop', why=h=>mode==='auto'?` [${h==='long'?'with the trend: hold long':'against the trend: quick profit'}]`:'';
       return {word:'ORDERS READY', kind:'plan', cards:lbPendCards(d), pend:{hi:d.hi, lo:d.lo, risk:d.risk, tp1:hb==='short'?tp1:null, tp2:hs==='short'?tp2:null, hb, hs},
         msg:`Place 2 pending orders in MT5: BUY STOP ${f(d.hi)} (SL ${f(d.lo)}${tpTxt(hb,tp1)})${why(hb)} and SELL STOP ${f(d.lo)} (SL ${f(d.hi)}${tpTxt(hs,tp2)})${why(hs)}. When one fills, delete the other. Delete both at ${khTime(Date.now()+(LBX.lastEntry-p.min)*60e3)} Cambodia time if nothing fills. ${lotTxt(d.risk)}.`}; }
-    if(d.state==='done' && d.trade){ const t=d.trade; return {done:t, word: t.r>0.02?`DONE TODAY +$${f(usd(t.pnl))}`:t.dir===0?'DONE TODAY (whipsaw)':`DONE TODAY ${(t.pnl>=0?'+$':'−$')+f(Math.abs(usd(t.pnl)))}`, kind:'idle', msg:`${t.why}. One trade per day: nothing more to do today.`}; }
+    if(d.state==='done' && d.trade){ const t=d.trade; return {done:t, word: t.r>0.02?`DONE TODAY +$${f(usd(t.pnl))}`:t.dir===0?'DONE TODAY (whipsaw)':`DONE TODAY ${(t.pnl>=0?'+$':'−$')+f(Math.abs(usd(t.pnl)))}`, kind:'idle', msg: t.dir===0 ? 'Price hit both orders in one candle (whipsaw). One trade per day: nothing more to do today.' : t.why==='Stop loss' ? `Stop loss: a false breakout. Price broke ${t.dir>0?'above':'below'} the range, then turned back. This is normal for this strategy: in tests the first break failed on about half the days (Short-term) and on 6 of 10 days (Long line). The few big winners pay for these losses. Do not re-enter or reverse: tests show reversing lowers results. One trade per day: wait for tomorrow.` : `${t.why}. One trade per day: nothing more to do today.`}; }
     if(d.state==='nofill' || p.min>=LBX.lastEntry) return {word:'NO TRADE TODAY', kind:'idle', msg:'Price did not break the range before 15:00 London. Delete any pending orders. Next range: tomorrow.'}; }
   if(p.min<LBX.rangeStart){ const mins=LBX.rangeStart-p.min; return {word:'WAIT FOR RANGE', kind:'idle', msg:`The range starts in ${Math.floor(mins/60)} h ${mins%60} min, at ${khTime(Date.now()+mins*60e3)} Cambodia time (London 08:00). Nothing to do before then.`}; }
   return {word:'NO TRADE TODAY', kind:'idle', msg:'Today\'s chance has passed. Next range: tomorrow, London 08:00.'}; }
@@ -99,7 +99,7 @@ function renderLbSig(){ const r=LB.res, I=lbInfo(r), mode=lbMode();
     else if(I.done?.dir){ const t=I.done; cards.appendChild(tradeCard(`Today: ${t.side.toUpperCase()} closed at ${f2(t.exit)} (${t.why}, ${t.pnl>=0?'+':'−'}$${f2(Math.abs(usd(t.pnl)))})`, {side:t.side, entry:t.entry, sl:t.sl0, sl0:t.sl0, tp:t.tp, hold:t.hold})); }
     if(cards.children.length) box.appendChild(cards); });
   const st=$('lbStats'); if(st){ const s=lbStats(r), R=LB_STATS[mode]; clear(st);
-    st.appendChild(el('div','small', `${R.label} mode, tested on real gold data (2017, 2018, Sep–Oct 2026, spread and slippage included): profit factor ${R.pf}, win rate ${R.win}, average ${R.avgR} per trade, ${R.trades}. ${R.note} Losing weeks and months still happen.`));
+    st.appendChild(el('div','small', `${R.label} mode, tested on real gold data (2017, 2018, Sep–Oct 2026, spread and slippage included): profit factor ${R.pf}, win rate ${R.win}, average ${R.avgR} per trade, ${R.trades}. ${R.note} Expect losing runs: up to ${R.streak} losses in a row happened in the tests. Size your lot so you can survive that.`));
     if(s.n) st.appendChild(el('div','small muted', `On the candles loaded now: ${s.n} trades, ${s.w} won (${s.rate.toFixed(0)}%), total ${s.totR>=0?'+':''}${s.totR.toFixed(1)}R, profit factor ${s.pf>=99?'–':s.pf.toFixed(2)}${LB.long?' (about 7 weeks of history)':''}.`)); }
   renderLbBadge(I); }
 
