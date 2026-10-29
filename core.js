@@ -12,7 +12,7 @@ const DEFAULTS = {
   mClaude:'claude-sonnet-5-5', mGemini:'gemini-3.8-flash', mDeepseek:'deepseek-v4-flash',
   symbol:'XAU/USD', tvSymbol:'PEPPERSTONE:XAUUSD', marketSyms:'XAG/USD,EUR/USD,USD/JPY,UUP,TLT,SPY',
   balance:200, lot:0.01, riskPct:4, winStart:'20:00', closeTime:'23:00', newsBuffer:30,
-  feedMode:'ws', pollSec:30, fastTicks:true, mode:'leader', theme:'system',
+  feedMode:'ws', pollSec:30, fastTicks:true, lbMode:'short', lbAlerts:true, mode:'leader', theme:'system',
   enClaude:true, enGemini:true, enDeepseek:true, discuss:true, aiAuto:true, aiSearch:true, liveSignals:true, notif:false, sound:true
 };
 const FIELDS = Object.keys(DEFAULTS);

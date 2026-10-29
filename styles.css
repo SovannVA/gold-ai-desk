@@ -333,3 +333,14 @@ body.noscroll{overflow:hidden}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 
 .feedage{color:var(--muted);font-variant-numeric:tabular-nums}.feedage.old{color:var(--warn)}
+
+.lbtab{font-weight:600}.lbdash{margin-bottom:16px}.lbdash .sigbar{margin:0}.lbinfo{margin:0 0 12px}.lbrules{margin:8px 0 0 18px;display:grid;gap:4px}
+.sigbar.plan{border-left-color:var(--info)}.sigbar.plan .sigword{background:color-mix(in srgb,var(--info) 15%,transparent);color:var(--info)}
+.sbox.lbrange{background:color-mix(in srgb,var(--gold) 14%,transparent);border:1px solid var(--gold-line)}.sbox.lbrange .slab{color:var(--gold);left:3px;right:auto}
+.sline.lbbuy{border-top:1.5px dashed var(--up)}.sline.lbbuy .stxt{color:var(--up);left:auto;right:0;transform:translate(0,-115%)}
+.sline.lbsell{border-top:1.5px dashed var(--down)}.sline.lbsell .stxt{color:var(--down);left:auto;right:0;transform:translate(0,15%)}
+.sline.lbtrail{border-top:1.5px dotted var(--warn)}.sline.lbtrail .stxt{color:var(--warn);left:auto;right:0}
+.oldwarn{margin:0 0 12px}
+
+.toolbar>.seg{flex-wrap:wrap;max-width:100%}
+@media (max-width:860px){.toolbar>.seg button{flex:1 1 auto}}

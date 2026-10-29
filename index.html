@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=24">
+<link rel="stylesheet" href="styles.css?v=25">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M6 24 10 10h12l4 14z' fill='%23e3b341'/%3E%3C/svg%3E">
 </head>
 <body>
@@ -107,9 +107,11 @@
           </div>
         </div>
 
+        <div class="panel lbdash"><div class="panel-head"><h2>★ London Breakout · tested strategy</h2><a href="#chart" class="small" id="lbOpen">Open chart</a></div><div class="sigbar idle" id="dLbSig"><span class="sigword">WAIT</span><span class="sigmsg">Press Start live to load prices.</span></div></div>
         <div class="bento">
           <div class="panel span-5" id="dSignalP">
-            <div class="panel-head"><h2>Live signal · 15 min</h2><span class="pill" id="dSigPill">–</span></div>
+            <div class="panel-head"><h2>Old 5-check signal · 15 min</h2><span class="pill" id="dSigPill">–</span></div>
+            <div class="small warnc" style="margin:-6px 0 10px">Lost money when tested on real gold data. For learning only.</div>
             <div id="dSignal" class="muted">Start live or load data to calculate the signal.</div>
           </div>
           <div class="panel span-7">
@@ -147,6 +149,7 @@
       <section class="view" data-view="chart" aria-label="Chart" hidden>
         <div class="toolbar">
           <div class="seg" role="tablist" aria-label="Chart type">
+            <button role="tab" aria-selected="false" data-chartmode="lb" class="lbtab">★ London Breakout</button>
             <button role="tab" aria-selected="true" data-chartmode="tv">Live chart</button>
             <button role="tab" aria-selected="false" data-chartmode="ana">Analysis chart</button>
             <button role="tab" aria-selected="false" data-chartmode="tag">Analysis chart + Tags</button>
@@ -158,11 +161,26 @@
             <div class="chips tagchips" id="tagChips" hidden></div>
             <div class="chips" id="ovChips"></div>
           </div>
+          <div class="toolbar-r" id="lbTools" hidden>
+            <div class="seg" role="tablist" aria-label="Strategy mode"><button role="tab" data-lbmode="short" aria-selected="true">Short-term</button><button role="tab" data-lbmode="long" aria-selected="false">Long line</button></div>
+            <button class="btn btn-sm" type="button" id="lbHist" title="Loads about 7 weeks of 15 min candles (1 Twelve Data credit) and tests the strategy on them">Test on 7 weeks</button>
+          </div>
           <div class="toolbar-r" id="smcTools" hidden>
             <select id="smcTf" aria-label="SMC timeframe"><option value="15min">15 min</option><option value="1h">1 hour</option></select>
             <div class="chips" id="smcChips"></div>
           </div>
         </div>
+        <div class="sigbar idle" id="lbSig" aria-live="polite" hidden><span class="sigword">WAIT</span><span class="sigmsg">Press Start live to load prices.</span></div>
+        <div class="panel lbinfo" id="lbInfoBox" hidden><div id="lbStats"></div>
+          <details class="mt"><summary class="small">How it works (rules)</summary><ol class="small lbrules">
+            <li><b>Range:</b> the first 30 minutes of the London session, 08:00–08:30 London time (14:00–14:30 Cambodia in summer, 15:00–15:30 in winter).</li>
+            <li><b>Orders:</b> Buy stop at the range high and Sell stop at the range low. The first one that fills cancels the other. If nothing fills by 15:00 London, delete both.</li>
+            <li><b>Stop loss:</b> the other side of the range. Do not move it to entry (tests showed that lowers results).</li>
+            <li><b>Short-term:</b> take profit at 1.5 × the range size; close anything still open at 23:00 Cambodia time.</li>
+            <li><b>Long line:</b> no fixed take profit; trailing stop 6 × ATR(15 min) that only moves in your favour; close after 24 hours or before the weekend.</li>
+            <li><b>One trade per day.</b> Size the lot so the stop loss costs at most your risk % (the desk shows the lot).</li>
+          </ol></details></div>
+        <div class="notice oldwarn" id="oldWarn" hidden></div>
         <div class="sigbar idle" id="chartSig" aria-live="polite" hidden><span class="sigword">WAIT</span><span class="sigmsg">Press Start live to get the signal.</span></div>
         <div class="panel aiteam" id="aiCheck" hidden></div>
         <div class="sigbar idle" id="smcSig" aria-live="polite" hidden><span class="sigword">WAIT</span><span class="sigmsg">Press Start live to load prices.</span></div>
@@ -175,6 +193,11 @@
           <div class="trade-legend small" id="tradeLegend" hidden><span><b class="up">Past</b> entries, SL moved, TP hit, SL hit, closed</span><span><b class="gold">Now</b> the signal or open trade with live profit</span><span><b class="warnc">Future</b> dashed lines and tags: where to close (TP, SL), when to move SL, close time. A plan, not a prediction</span><span>Turn each on or off with <b>Show on chart</b> above. Small labels keep candles clear; move over a candle to read the full label.</span></div>
           <div class="pane-label" id="rsiLabel">RSI 14</div><div id="rsiChart" class="chart-pane"></div>
           <div class="pane-label" id="macdLabel">MACD 12 26 9</div><div id="macdChart" class="chart-pane"></div>
+        </div>
+        <div class="panel pad0 fswrap" id="lbWrap" hidden>
+          <button class="btn btn-sm fsexit" type="button" data-fsexit>✕ Exit full screen</button>
+          <div class="chart-host smchost"><div id="lbChart" class="chart-main smc-main"></div><div class="smcLayer" id="lbLayer" aria-hidden="true"></div><div class="chartbadge idle smcbadge" id="lbBadge" aria-hidden="true"></div></div>
+          <div class="trade-legend small"><span><b class="muted">Range</b> first 30 min of London</span><span><b class="up">Buy stop</b> / <b class="down">Sell stop</b> pending orders</span><span><b class="up">green</b> / <b class="down">red</b> boxes: TP and SL</span><span><b class="warnc">Trail</b> trailing stop (Long line)</span></div>
         </div>
         <div class="panel pad0 fswrap" id="smcWrap" hidden>
           <button class="btn btn-sm fsexit" type="button" data-fsexit>✕ Exit full screen</button>
@@ -422,6 +445,7 @@
               <div><label class="lbl" for="balance">Balance ($)</label><input id="balance" type="number" step="1"></div>
               <div><label class="lbl" for="lot">Lot size</label><input id="lot" type="number" step="0.01"></div>
               <div><label class="lbl" for="riskPct">Max risk per trade (%)</label><input id="riskPct" type="number" step="0.5"></div>
+              <div><label class="lbl" for="lbMode">London Breakout mode</label><select id="lbMode"><option value="short">Short-term (TP 1.5R, close same day)</option><option value="long">Long line (trailing stop, up to 24 h)</option></select></div>
               <div><label class="lbl" for="newsBuffer">No entries before high-impact news (min)</label><input id="newsBuffer" type="number" step="5" min="0"></div>
               <div><label class="lbl" for="winStart">Trading window starts</label><input id="winStart" type="time"></div>
               <div><label class="lbl" for="closeTime">Close all trades by</label><input id="closeTime" type="time"></div>
@@ -447,7 +471,8 @@
             <div class="chkrow mt">
               <label class="chk"><input type="checkbox" id="notif">Browser notifications</label>
               <label class="chk"><input type="checkbox" id="sound">Alert sound</label>
-              <label class="chk"><input type="checkbox" id="liveSignals">Signal alerts in live mode</label>
+              <label class="chk"><input type="checkbox" id="lbAlerts">London Breakout alerts (orders ready, filled, closed)</label>
+              <label class="chk"><input type="checkbox" id="liveSignals">Old 5-check signal alerts (not recommended)</label>
             </div>
             <p class="muted small mt">Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener">TradingView</a> (live chart widgets and Lightweight Charts). Prices by Twelve Data.</p>
             <div class="row mt"><button class="btn btn-primary" id="saveBtn">Save settings</button><button class="btn" id="clearKeys">Clear keys</button><button class="btn btn-ghost" id="resetData">Reset journal and alerts</button></div>
@@ -477,17 +502,18 @@
 </div>
 <div id="toasts" aria-live="polite"></div>
 
-<script src="config.js?v=24"></script>
+<script src="config.js?v=25"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
-<script src="core.js?v=24"></script>
-<script src="ind.js?v=24"></script>
-<script src="data.js?v=24"></script>
-<script src="analysis.js?v=24"></script>
-<script src="charts.js?v=24"></script>
-<script src="ai.js?v=24"></script>
-<script src="views.js?v=24"></script>
-<script src="smc.js?v=24"></script>
-<script src="main.js?v=24"></script>
+<script src="core.js?v=25"></script>
+<script src="ind.js?v=25"></script>
+<script src="data.js?v=25"></script>
+<script src="analysis.js?v=25"></script>
+<script src="charts.js?v=25"></script>
+<script src="ai.js?v=25"></script>
+<script src="views.js?v=25"></script>
+<script src="smc.js?v=25"></script>
+<script src="strategy.js?v=25"></script>
+<script src="main.js?v=25"></script>
 </body>
 </html>

@@ -21,7 +21,8 @@ function fsClose(){ const el=fsEl(); if(document.fullscreenElement||document.web
   document.querySelectorAll('.fswrap.fs').forEach(x=>x.classList.remove('fs','fsfake')); document.body.classList.remove('noscroll'); }
 ['fullscreenchange','webkitfullscreenchange'].forEach(ev=>document.addEventListener(ev,()=>{ if(!(document.fullscreenElement||document.webkitFullscreenElement)) document.querySelectorAll('.fswrap.fs:not(.fsfake)').forEach(x=>x.classList.remove('fs')); setTimeout(()=>{ if(typeof placeTags==='function') placeTags(); },120); }));
 document.addEventListener('keydown',e=>{ if(e.key==='Escape' && document.querySelector('.fswrap.fsfake')) fsClose(); });
-$('chartFs').onclick=()=>fsOpen(chartMode==='tv' ? $('tvAdvWrap') : chartMode==='smc' ? $('smcWrap') : $('anaWrap'));
+$('chartFs').onclick=()=>fsOpen(chartMode==='tv' ? $('tvAdvWrap') : chartMode==='smc' ? $('smcWrap') : chartMode==='lb' ? $('lbWrap') : $('anaWrap'));
+$$('[data-lbmode]').forEach(x=>x.onclick=()=>lbSetMode(x.dataset.lbmode)); $('lbHist').onclick=lbLoadHistory; $('lbOpen').onclick=e=>{ e.preventDefault(); location.hash='chart'; setTimeout(()=>setChartMode('lb'),50); };
 $('dxFs').onclick=()=>fsOpen($('dxWrap'));
 document.querySelectorAll('[data-fsexit]').forEach(b=>b.onclick=fsClose);
 new MutationObserver(()=>{ $('dxFs').hidden=$('dxChart').hidden; }).observe($('dxChart'),{attributes:true, attributeFilter:['hidden']});
@@ -35,19 +36,23 @@ Object.assign(AI_HOOKS, {cards:renderCards, say, final:renderFinal, pics:renderP
 // ----- settings -----
 function loadForm(){ FIELDS.forEach(k=>{ const e=$(k); if(!e) return; if(e.type==='checkbox') e.checked=!!cfg[k]; else e.value=cfg[k]; }); showCredits(); }
 function readForm(){ FIELDS.forEach(k=>{ const e=$(k); if(!e) return; cfg[k] = e.type==='checkbox' ? e.checked : (e.type==='number' || k==='pollSec') ? Number(e.value) : e.value.trim(); }); }
-function saveSettings(){ const before={feedMode:cfg.feedMode, pollSec:cfg.pollSec, symbol:cfg.symbol, tv:cfg.tvSymbol}; readForm(); LS.set(CFG_KEY, cfg); applyTheme(); showCredits(); toast('Settings saved.');
+function saveSettings(){ const before={feedMode:cfg.feedMode, pollSec:cfg.pollSec, symbol:cfg.symbol, tv:cfg.tvSymbol}; readForm(); LS.set(CFG_KEY, cfg); if(typeof lbSetMode==='function') lbSetMode(lbMode()); applyTheme(); showCredits(); toast('Settings saved.');
   if(before.tv!==cfg.tvSymbol) Object.keys(TV_STATE).forEach(id=>delete TV_STATE[id]);
   if(S.live){ if(cfg.fastTicks && !FT.ws) ftConnect(); if(!cfg.fastTicks) ftClose(); }
   if(S.live && (before.feedMode!==cfg.feedMode || before.pollSec!==cfg.pollSec || before.symbol!==cfg.symbol)){ if(before.symbol!==cfg.symbol){ S.candles={}; } stopLive(); startLive(); } else refreshAll(); }
 
 // ----- chart page -----
-let chartMode=LS.get('goldAiDesk.chartMode','tv');
+let chartMode=LS.get('goldAiDesk.chartMode','lb');
+// one-time switch to the tested strategy: old signal alerts off, London Breakout on
+if(!LS.get('goldAiDesk.lbMigrated', false)){ cfg.liveSignals=false; cfg.lbAlerts=true; if(!cfg.lbMode) cfg.lbMode='short'; LS.set(CFG_KEY, cfg); SMC.ov.alerts=false; LS.set('goldAiDesk.smcOv', SMC.ov); chartMode='lb'; LS.set('goldAiDesk.lbMigrated', true); }
 function setChartMode(m){ chartMode=m; LS.set('goldAiDesk.chartMode', m);
   $$('[data-chartmode]').forEach(b=>b.setAttribute('aria-selected', b.dataset.chartmode===m?'true':'false'));
   const tag=m==='tag', ana=m==='ana'||m==='tag', smc=m==='smc'; $('tvAdvWrap').hidden=m!=='tv'; $('anaWrap').hidden=!ana; $('anaTools').hidden=!ana;
   ['smcWrap','smcTools','smcSig','smcCheckBox'].forEach(id=>{ if($(id)) $(id).hidden=!smc; });
+  const lb=m==='lb'; ['lbWrap','lbTools','lbSig','lbInfoBox'].forEach(id=>{ if($(id)) $(id).hidden=!lb; });
+  const ow=$('oldWarn'); ow.hidden=!(tag||smc); ow.textContent = smc ? 'Warning: when tested on real gold data (2017, 2018, Sep–Oct 2026) these SMC rules lost money (profit factor 0.36–0.96). Use this chart for learning only. For trading, use ★ London Breakout.' : 'Warning: when tested on real gold data (2017, 2018, Sep–Oct 2026) the 5-check signal shown here lost money (profit factor 0.54–0.82). Use this chart for learning only. For trading, use ★ London Breakout.';
   ['chartSig','aiCheck','tagChips','tagLayer','anaBadge','tradeLegend'].forEach(id=>{ if($(id)) $(id).hidden=!tag; }); renderOverlayChips(); renderAiPanel();
-  if(m==='tv') tvEnsure('tvAdv'); else if(smc){ renderSmcChips(); smcRefresh(false); } else { anaInit(); if(anaBars()?.length) anaDraw(false); else { $('ohlc').textContent='Start live to load the analysis chart.'; } } }
+  if(m==='tv') tvEnsure('tvAdv'); else if(lb){ lbSetMode(lbMode()); lbRefresh(false); } else if(smc){ renderSmcChips(); smcRefresh(false); } else { anaInit(); if(anaBars()?.length) anaDraw(false); else { $('ohlc').textContent='Start live to load the analysis chart.'; } } }
 
 // ----- wiring -----
 function wire(){
