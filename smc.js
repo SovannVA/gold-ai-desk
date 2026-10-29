@@ -113,15 +113,23 @@ function smcInfo(r){
   return {word:'WAIT', kind:'idle', msg: d ? `Structure is ${d<0?'down':'up'}, but there is no fresh order block to trade from. Wait for the next BOS.` : 'Structure is not clear yet. Wait for a BOS or CHoCH.'}; }
 function renderSmcSig(){ const box=$('smcSig'); if(!box) return; const r=SMC.res, I=smcInfo(r); clear(box); box.className='sigbar '+I.kind;
   box.append(el('span','sigword',I.word), el('span','sigmsg',I.msg));
-  const lv=I.op||I.plan; if(lv){ const n=el('div','signums'); [[I.plan?'Plan entry':'Entry',lv.entry],[lv.trailing?'Trailing stop':'Stop loss',lv.sl],...(lv.hold==='long'?[['Target (guide)',lv.target??lv.tp],['Hold','Long line']]:[['Take profit',lv.tp],['R:R','1:'+lv.rr.toFixed(1)]])].forEach(([k,v])=>{ const q=el('div'); q.append(el('span','small muted',k), el('b',null,typeof v==='number'?f2(v):v)); n.appendChild(q); }); box.appendChild(n); }
+  const lv=I.op||I.plan; if(lv){ const cards=el('div','tradecards'); cards.appendChild(tradeCard(I.plan ? `PLAN ${lv.side.toUpperCase()} · not an order yet: wait for the confirmation candle` : (lv.tooRisky ? `SMC ${lv.side.toUpperCase()} · stop is over your risk limit: skip or smaller lot` : `SMC ${lv.side.toUpperCase()} · do this in MT5`), smcCardObj(lv, !!I.plan, r), (lv.side==='buy'?'buy':'sell')+(I.plan?' plan':''))); box.appendChild(cards); }
   renderSmcBadge(I);
   const ck=$('smcChecks'); if(ck){ clear(ck); (r?.checks||[]).forEach(([t,ok])=>{ const c=el('div','check '+(ok?'ok':'no')); c.append(el('span','ic',ok?'✓':''), el('span',null,t)); ck.appendChild(c); });
     if(r){ const s=smcStats(r); ck.appendChild(el('div','small muted mt', `SMC setups in the loaded data (${SMC.tf==='1h'?'1 hour':'15 min'}, about ${Math.round(r.b.length*smcSec()/86400)} days): ${s.n} finished, ${s.w} won (${s.rate.toFixed(0)}%), total ${s.netR>=0?'+':''}${s.netR.toFixed(1)}R (${s.net$>=0?'+$':'−$'}${f2(Math.abs(s.net$))} at your lot). Small sample: test more before trusting it.`)); } } }
 
 // ----- status box on the chart -----
+// trade card data for an SMC setup or plan
+function smcCardObj(lv, plan, r){ const lg=lv.hold==='long', dir=lv.side==='buy'?1:-1, t0=plan ? Date.now()/1000 : r.b[lv.i].t;
+  return {side:lv.side, entry:lv.entry, sl:lv.sl, sl0:lv.sl0??lv.sl, tp:lg?null:lv.tp, hold:lv.hold, trailing:lv.trailing, be:lv.be,
+    targets: lg ? [['Liquidity target', lv.target??lv.tp]] : null,
+    extra: (!lg && !lv.be) ? [['Move SL to entry at', f2(lv.entry+dir*Math.abs(lv.entry-(lv.sl0??lv.sl))), 'warnc']] : null,
+    closeBy: lg ? `${khStamp((t0+24*3600)*1000)} (24 h) or the stop` : `${cfg.closeTime} Cambodia time`}; }
 function renderSmcBadge(I){ const bd=$('smcBadge'); if(!bd) return; clear(bd); const lv=I.op||I.plan;
   bd.className='chartbadge smcbadge '+(I.kind==='idle' && I.plan ? 'plan' : I.kind); bd.appendChild(el('div','cbword', I.word));
   if(lv){ const lg=lv.hold==='long'; bd.appendChild(el('div','cbnums', `${I.plan?'Plan entry':'Entry'} ${f2(lv.entry)} · ${lv.trailing?'Trail':'SL'} ${f2(lv.sl)} · ${lg?`Target ${f2(lv.target??lv.tp)} (guide)`:`TP ${f2(lv.tp)}`} · ${HOLD_NAMES[lv.hold||'short']}`));
+    const R=Math.abs(lv.entry-(lv.sl0??lv.sl)), l=lotFor(R), L=Math.max(l,0.01);
+    bd.appendChild(el('div','cbnums', `Lot ${L.toFixed(2)}${l<0.01?' ⚠':''} · risk −$${f2(R*L*100)}${lg?'':` · TP +$${f2(Math.abs(lv.tp-lv.entry)*L*100)}`}`));
     bd.appendChild(el('div','cbnums', I.op ? (lg ? 'Long line: move your stop to the trail line' : I.op.be?'SL moved to entry: no risk':`Move SL to entry at ${f2(I.op.entry+I.op.dir*I.op.risk)}`) : 'Wait for the confirmation candle')); }
   else bd.appendChild(el('div','cbnums', I.msg.length>90 ? I.msg.slice(0,88)+'…' : I.msg));
   smcPriceLines(lv, !!I.plan); }
@@ -178,7 +186,7 @@ function smcOverlay(){ const L=$('smcLayer'); if(!L || !SMC.ready || !SMC.res ||
 function renderSmcChips(){ const box=$('smcChips'); if(!box) return; box.innerHTML=''; box.appendChild(el('span','small muted','Show:'));
   SMC_OPTS.forEach(([k,label])=>{ const c=el('button','chip',label); c.type='button'; c.setAttribute('aria-pressed', SMC.ov[k]?'true':'false');
     c.onclick=()=>{ SMC.ov[k]=!SMC.ov[k]; LS.set('goldAiDesk.smcOv', SMC.ov); c.setAttribute('aria-pressed', SMC.ov[k]?'true':'false'); smcDraw(false); }; box.appendChild(c); }); }
-function smcRefresh(force){ const b=smcBars(); if(!b?.length) { renderSmcSig(); return; }
+function smcRefresh(force){ const b=smcBars(); chartEmpty('smcWrap', !b?.length, 'SMC chart'); if(!b?.length) { renderSmcSig(); return; }
   SMC.res=smcAnalyze(b); renderSmcSig();
   const r=SMC.res, op=r?.open;
   if(op && S.live && SMC.ov.alerts && r.i-op.i<=1 && !op.tooRisky && !SMC.seen.has(op.t+op.side)){ SMC.seen.add(op.t+op.side);

@@ -60,6 +60,13 @@ function lbStats(r){ const done=(r?.trades||[]).filter(t=>!t.open); if(!done.len
 function lbLot(risk){ const maxUsd=cfg.balance*cfg.riskPct/100, lot=Math.floor(maxUsd/(risk*100)/0.01)*0.01; return lot; }
 
 // ----- what to do now -----
+const LB_SHORT_CLOSE = () => `${khTime(Date.UTC(1970,0,1,LBX.exitUTC))} Cambodia time`;
+function lbCloseBy(hold, entrySec){ return hold==='long' ? `${khStamp((entrySec+LBX.maxBars*900)*1000)} (24 h) or the stop` : LB_SHORT_CLOSE(); }
+// the two pending orders as trade cards (same lot for both: the risk is the range)
+function lbPendCards(d, partial){ const t0=Date.now()/1000, hb=d.hold?.buy||holdMode(), hs=d.hold?.sell||holdMode(), risk=d.hi-d.lo;
+  const mk=(dir,h)=>({side:dir>0?'buy':'sell', pending:true, entry:dir>0?d.hi:d.lo, sl:dir>0?d.lo:d.hi, tp:h==='short'?(dir>0?d.hi:d.lo)+dir*LBX.tpR*risk:null, hold:h, closeBy:lbCloseBy(h, t0)});
+  const why=h=>holdMode()==='auto' ? (h==='long'?' · with the trend':' · against the trend') : '';
+  return [[`BUY STOP${partial?' (if the range ended now)':''}${why(hb)}`, mk(1,hb)], [`SELL STOP${partial?' (if the range ended now)':''}${why(hs)}`, mk(-1,hs)]]; }
 function lbInfo(r){
   const mode=lbMode(), S1=LB_STATS[mode];
   if(!r) return {word:'WAIT', kind:'idle', msg: S.candles['15min'] ? 'Loading candles…' : 'Press Start live to load prices.'};
@@ -69,16 +76,16 @@ function lbInfo(r){
   if(!goldOpen()) return {word:'MARKET CLOSED', kind:'idle', msg:'Gold is closed. The next range is the first 30 minutes of the London session on the next trading day.'};
   const op=r.trades.find(t=>t.open);
   if(op){ const pnl=(price-op.entry)*op.dir, nm=op.side.toUpperCase();
-    return {word:`${nm} OPEN ${(pnl>=0?'+$':'−$')+f(Math.abs(usd(pnl)))}`, kind:op.side, lv:{entry:op.entry, sl:op.sl, tp:op.tp, side:op.side},
+    return {word:`${nm} OPEN ${(pnl>=0?'+$':'−$')+f(Math.abs(usd(pnl)))}`, kind:op.side, lv:{entry:op.entry, sl:op.sl, sl0:op.sl0, tp:op.tp, side:op.side, hold:op.hold, trailing:op.trail.length>0, closeBy:lbCloseBy(op.hold, r.b[op.i].t)},
       hold:op.hold, msg: (mode==='auto' ? `Auto picked ${HOLD_NAMES[op.hold]} for this trade (${op.withTrend?'it goes with':'it goes against'} the EMA 200 trend). ` : '') + (op.hold==='short' ? `Hold. Stop loss ${f(op.sl)}, take profit ${f(op.tp)}. If neither is hit, close at ${khTime(Date.UTC(1970,0,1,LBX.exitUTC))} Cambodia time. Do not move the stop to entry (tests show it lowers results).`
         : `Hold and let it run. Trailing stop now ${f(op.sl)} (moves only in your favour: move your MT5 stop to it). Close if hit, after 24 hours, or before the weekend.`)}; }
   if(d && d.key===p.key){
-    if(d.state==='building' || (p.min>=LBX.rangeStart && p.min<LBX.rangeStart+LBX.rangeLen)) return {word:'RANGE BUILDING', kind:'wait', msg:`Marking the range now (${rangeKH()} Cambodia time).${d.hi?` So far: high ${f(d.hi)}, low ${f(d.lo)}.`:''} Orders come when it ends.`};
+    if(d.state==='building' || (p.min>=LBX.rangeStart && p.min<LBX.rangeStart+LBX.rangeLen)) return {word:'RANGE BUILDING', kind:'wait', cards: d.hi!=null && d.hi>d.lo ? lbPendCards(d, true) : null, msg:`Marking the range now (${rangeKH()} Cambodia time).${d.hi?` So far: high ${f(d.hi)}, low ${f(d.lo)}.`:''} Orders come when it ends: the cards show the plan if the range ended now (levels can still change).`};
     if(d.state==='pending' && p.min<LBX.lastEntry){ const tp1=d.hi+LBX.tpR*d.risk, tp2=d.lo-LBX.tpR*d.risk, hb=d.hold.buy, hs=d.hold.sell;
       const tpTxt=(h,tp)=>h==='short'?`, TP ${f(tp)}`:', no TP: trail the stop', why=h=>mode==='auto'?` [${h==='long'?'with the trend: hold long':'against the trend: quick profit'}]`:'';
-      return {word:'ORDERS READY', kind:'plan', pend:{hi:d.hi, lo:d.lo, risk:d.risk, tp1:hb==='short'?tp1:null, tp2:hs==='short'?tp2:null},
+      return {word:'ORDERS READY', kind:'plan', cards:lbPendCards(d), pend:{hi:d.hi, lo:d.lo, risk:d.risk, tp1:hb==='short'?tp1:null, tp2:hs==='short'?tp2:null, hb, hs},
         msg:`Place 2 pending orders in MT5: BUY STOP ${f(d.hi)} (SL ${f(d.lo)}${tpTxt(hb,tp1)})${why(hb)} and SELL STOP ${f(d.lo)} (SL ${f(d.hi)}${tpTxt(hs,tp2)})${why(hs)}. When one fills, delete the other. Delete both at ${khTime(Date.now()+(LBX.lastEntry-p.min)*60e3)} Cambodia time if nothing fills. ${lotTxt(d.risk)}.`}; }
-    if(d.state==='done' && d.trade){ const t=d.trade; return {word: t.r>0.02?`DONE TODAY +$${f(usd(t.pnl))}`:t.dir===0?'DONE TODAY (whipsaw)':`DONE TODAY ${(t.pnl>=0?'+$':'−$')+f(Math.abs(usd(t.pnl)))}`, kind:'idle', msg:`${t.why}. One trade per day: nothing more to do today.`}; }
+    if(d.state==='done' && d.trade){ const t=d.trade; return {done:t, word: t.r>0.02?`DONE TODAY +$${f(usd(t.pnl))}`:t.dir===0?'DONE TODAY (whipsaw)':`DONE TODAY ${(t.pnl>=0?'+$':'−$')+f(Math.abs(usd(t.pnl)))}`, kind:'idle', msg:`${t.why}. One trade per day: nothing more to do today.`}; }
     if(d.state==='nofill' || p.min>=LBX.lastEntry) return {word:'NO TRADE TODAY', kind:'idle', msg:'Price did not break the range before 15:00 London. Delete any pending orders. Next range: tomorrow.'}; }
   if(p.min<LBX.rangeStart){ const mins=LBX.rangeStart-p.min; return {word:'WAIT FOR RANGE', kind:'idle', msg:`The range starts in ${Math.floor(mins/60)} h ${mins%60} min, at ${khTime(Date.now()+mins*60e3)} Cambodia time (London 08:00). Nothing to do before then.`}; }
   return {word:'NO TRADE TODAY', kind:'idle', msg:'Today\'s chance has passed. Next range: tomorrow, London 08:00.'}; }
@@ -86,8 +93,11 @@ function lbInfo(r){
 function renderLbSig(){ const r=LB.res, I=lbInfo(r), mode=lbMode();
   ['lbSig','dLbSig'].forEach(id=>{ const box=$(id); if(!box) return; clear(box); box.className='sigbar '+(I.kind==='plan'?'plan':I.kind);
     box.append(el('span','sigword',I.word), el('span','sigmsg',I.msg));
-    const lv=I.lv, pd=I.pend; if(lv || pd){ const n=el('div','signums'); const rows = lv ? [['Entry',lv.entry],['Stop loss',lv.sl],...(lv.tp!=null?[['Take profit',lv.tp]]:[])] : [['Buy stop',pd.hi],['Sell stop',pd.lo],['Risk',pd.risk]];
-      rows.forEach(([k,v])=>{ const q=el('div'); q.append(el('span','small muted',k), el('b',null,f2(v))); n.appendChild(q); }); box.appendChild(n); } });
+    const cards=el('div','tradecards');
+    if(I.lv) cards.appendChild(tradeCard(`${I.lv.side.toUpperCase()} OPEN · do this in MT5`, I.lv));
+    else if(I.cards) I.cards.forEach(([t,o])=>cards.appendChild(tradeCard(t, o, (o.side==='buy'?'buy':'sell')+' plan')));
+    else if(I.done?.dir){ const t=I.done; cards.appendChild(tradeCard(`Today: ${t.side.toUpperCase()} closed at ${f2(t.exit)} (${t.why}, ${t.pnl>=0?'+':'−'}$${f2(Math.abs(usd(t.pnl)))})`, {side:t.side, entry:t.entry, sl:t.sl0, sl0:t.sl0, tp:t.tp, hold:t.hold})); }
+    if(cards.children.length) box.appendChild(cards); });
   const st=$('lbStats'); if(st){ const s=lbStats(r), R=LB_STATS[mode]; clear(st);
     st.appendChild(el('div','small', `${R.label} mode, tested on real gold data (2017, 2018, Sep–Oct 2026, spread and slippage included): profit factor ${R.pf}, win rate ${R.win}, average ${R.avgR} per trade, ${R.trades}. ${R.note} Losing weeks and months still happen.`));
     if(s.n) st.appendChild(el('div','small muted', `On the candles loaded now: ${s.n} trades, ${s.w} won (${s.rate.toFixed(0)}%), total ${s.totR>=0?'+':''}${s.totR.toFixed(1)}R, profit factor ${s.pf>=99?'–':s.pf.toFixed(2)}${LB.long?' (about 7 weeks of history)':''}.`)); }
@@ -127,21 +137,34 @@ function lbOverlay(){ const Lr=$('lbLayer'); if(!Lr || !LB.ready || !LB.res || $
   r.trades.forEach(t=>{ if(!t.dir) { tag(t.i, t.entry, 'Both sides hit', 'close', true); return; }
     const end = t.open ? n-1+12 : t.exitI; if(t.tp!=null) box(t.i, end, t.entry, t.tp, 'tbox win', t.open?`TP ${f2(t.tp)}`:''); box(t.i, end, t.entry, t.sl0, 'tbox loss', t.open?`SL ${f2(t.sl0)}`:'');
     if(t.trail.length) t.trail.forEach(([j,v],k)=>{ const nx=t.trail[k+1]?.[0] ?? (t.open?n-1:t.exitI); hline(j, nx, v, 'lbtrail', k===t.trail.length-1&&t.open?'Trail':''); });
-    tag(t.i, t.dir>0?Math.min(t.sl0,b[t.i].l):Math.max(t.sl0,b[t.i].h), `${t.side.toUpperCase()} ${f2(t.entry)}`, t.side, t.dir<0);
-    if(!t.open){ const k=t.why==='Take profit'?'tp':t.pnl<0?'sl':'close'; tag(t.exitI, t.exit, `${t.why==='Take profit'?'TP':t.why==='Stop loss'?'SL':t.why==='Trailing stop'?'Trail':'Close'} ${t.pnl>=0?'+':'−'}$${f2(Math.abs(usd(t.pnl)))}`, k, t.dir>0 ? t.pnl>=0 : t.pnl<0); } }); }
+    if(t.hold==='long' && t.open){ const R=t.risk; [[1.5,'Target 1'],[3,'Target 2']].forEach(([k,lb])=>hline(t.i, end, t.entry+t.dir*k*R, 'lbtrail guide', `${lb} ${f2(t.entry+t.dir*k*R)} (guide)`)); }
+    tag(t.i, t.dir>0?Math.min(t.sl0,b[t.i].l):Math.max(t.sl0,b[t.i].h), t.open ? `${t.side.toUpperCase()} ${f2(t.entry)} · SL ${f2(t.sl0)} · ${t.tp!=null?`TP ${f2(t.tp)}`:'trail'}` : `${t.side.toUpperCase()} ${f2(t.entry)}`, t.side, t.dir<0);
+    if(!t.open){ const k=t.why==='Take profit'?'tp':t.pnl<0?'sl':'close'; tag(t.exitI, t.exit, `${t.why==='Take profit'?'TP':t.why==='Stop loss'?'SL':t.why==='Trailing stop'?'Trail':'Close'} ${t.pnl>=0?'+':'−'}$${f2(Math.abs(usd(t.pnl)))}`, k, t.dir>0 ? t.pnl>=0 : t.pnl<0); } });
+  // plan for today's two orders (ORDERS READY, or a preview while the range is building)
+  const I=lbInfo(r); if(I.cards){ const i0=n-1, i1=n-1+16, pv=I.word==='RANGE BUILDING';
+    I.cards.forEach(([title,o])=>{ const dir=o.side==='buy'?1:-1, R=Math.abs(o.entry-o.sl), goal=o.tp ?? o.entry+dir*1.5*R;
+      box(i0, i1, o.entry, goal, 'tbox win plan'+(o.tp==null?' guide':''), o.tp!=null?`${o.side==='buy'?'Buy':'Sell'} TP ${f2(o.tp)}`:`${o.side==='buy'?'Buy':'Sell'}: no TP, trail (guide ${f2(goal)})`);
+      tag(i0+8, o.entry, `${pv?'IF ':''}${o.side==='buy'?'BUY STOP':'SELL STOP'} ${f2(o.entry)} · SL ${f2(o.sl)} · ${o.tp!=null?`TP ${f2(o.tp)}`:'trail'}`, 'plan', dir>0); });
+    box(i0, i1, I.cards[0][1].entry, I.cards[1][1].entry, 'tbox loss plan', 'SL zone (the range)'); } }
 function renderLbBadge(I){ const bd=$('lbBadge'); if(!bd) return; clear(bd); bd.className='chartbadge smcbadge '+(I.kind==='plan'?'plan':I.kind); bd.appendChild(el('div','cbword',I.word));
-  if(I.lv) bd.appendChild(el('div','cbnums',`Entry ${f2(I.lv.entry)} · SL ${f2(I.lv.sl)}${I.lv.tp!=null?` · TP ${f2(I.lv.tp)}`:' · trailing'} · ${HOLD_NAMES[I.hold||'short']}`));
-  else if(I.pend) bd.appendChild(el('div','cbnums',`Buy stop ${f2(I.pend.hi)} · Sell stop ${f2(I.pend.lo)} · risk ${f2(I.pend.risk)}`));
+  const lotLine=R=>{ const l=lotFor(R); return `Lot ${Math.max(l,0.01).toFixed(2)}${l<0.01?' ⚠':''} · risk −$${f2(R*Math.max(l,0.01)*100)}`; };
+  if(I.lv){ const v=I.lv, dir=v.side==='buy'?1:-1, R=Math.abs(v.entry-v.sl0);
+    bd.appendChild(el('div','cbnums',`Entry ${f2(v.entry)} · ${v.trailing?'Trail':'SL'} ${f2(v.sl)} · ${v.tp!=null?`TP ${f2(v.tp)}`:`no TP · T1 ${f2(v.entry+dir*1.5*R)} · T2 ${f2(v.entry+dir*3*R)} (guides)`}`));
+    bd.appendChild(el('div','cbnums',`${lotLine(R)} · ${HOLD_NAMES[v.hold||'short']} · close by ${v.closeBy}`)); }
+  else if(I.pend){ const P=I.pend; bd.appendChild(el('div','cbnums',`BUY STOP ${f2(P.hi)} · SL ${f2(P.lo)} · ${P.tp1!=null?`TP ${f2(P.tp1)}`:'no TP, trail'}`));
+    bd.appendChild(el('div','cbnums',`SELL STOP ${f2(P.lo)} · SL ${f2(P.hi)} · ${P.tp2!=null?`TP ${f2(P.tp2)}`:'no TP, trail'}`)); bd.appendChild(el('div','cbnums',lotLine(P.risk))); }
   else bd.appendChild(el('div','cbnums', I.msg.length>90 ? I.msg.slice(0,88)+'…' : I.msg));
   if(!LB.cs) return; (LB.plines||[]).forEach(l=>LB.cs.removePriceLine(l)); LB.plines=[];
   const pl=(price,color,title)=>LB.plines.push(LB.cs.createPriceLine({price, color, lineWidth:1, lineStyle:2, lineVisible:false, axisLabelVisible:true, title}));
-  if(I.lv){ pl(I.lv.entry, I.lv.side==='buy'?C.up():C.down(), I.lv.side.toUpperCase()); pl(I.lv.sl, C.down(), 'SL'); if(I.lv.tp!=null) pl(I.lv.tp, C.up(), 'TP'); }
+  if(I.lv){ const v=I.lv, dir=v.side==='buy'?1:-1, R=Math.abs(v.entry-v.sl0); pl(v.entry, dir>0?C.up():C.down(), v.side.toUpperCase()); pl(v.sl, C.down(), v.trailing?'Trail':'SL');
+    if(v.tp!=null) pl(v.tp, C.up(), 'TP'); else { pl(v.entry+dir*1.5*R, '#8e9bb3', 'T1 guide'); pl(v.entry+dir*3*R, '#8e9bb3', 'T2 guide'); } }
   else if(I.pend){ pl(I.pend.hi, C.up(), 'Buy stop'); pl(I.pend.lo, C.down(), 'Sell stop'); if(I.pend.tp1!=null) pl(I.pend.tp1, C.up(), 'Buy TP'); if(I.pend.tp2!=null) pl(I.pend.tp2, C.down(), 'Sell TP'); } }
+function lbEmpty(){ chartEmpty('lbWrap', !lbBars()?.length, 'London Breakout chart'); }
 
 // ----- refresh -----
 function lbBars(){ const live=S.candles['15min']; if(!LB.long) return live; if(!live?.length) return LB.long;
   const t0=live[0].t; return LB.long.filter(x=>x.t<t0).concat(live); }
-function lbRefresh(fit){ const b=lbBars(); LB.res = b?.length ? lbAnalyze(b) : null; renderLbSig(); lbAlerts(); if(!$('holdBar')?.hidden) renderHoldBar(); if(!$('lbWrap')?.hidden) lbDraw(fit); }
+function lbRefresh(fit){ const b=lbBars(); LB.res = b?.length ? lbAnalyze(b) : null; renderLbSig(); lbAlerts(); lbEmpty(); if(!$('holdBar')?.hidden) renderHoldBar(); if(!$('lbWrap')?.hidden) lbDraw(fit); }
 function lbTick(){ if(LB.tickQ) return; LB.tickQ=requestAnimationFrame(()=>{ LB.tickQ=0; if(Date.now()-(LB.lastRun||0)>1000){ LB.lastRun=Date.now(); lbRefresh(false); } else if(LB.ready && !$('lbWrap').hidden){ const x=lbBars()?.at(-1); if(x) try{ LB.cs.update({time:x.t+OFF, open:x.o, high:x.h, low:x.l, close:x.c}); }catch(e){} } }); }
 async function lbLoadHistory(){ const btn=$('lbHist'); if(btn) btn.disabled=true;
   try{ LB.long=await series('15min',5000); LB.longAt=Date.now(); toast(`Loaded ${LB.long.length} candles (about 7 weeks) for the test.`); lbRefresh(true); }

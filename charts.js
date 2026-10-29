@@ -47,7 +47,7 @@ function anaInit(){
   m.timeScale().subscribeVisibleLogicalRangeChange(()=>requestAnimationFrame(placeTags)); new ResizeObserver(()=>requestAnimationFrame(placeTags)).observe($('mainChart'));
   ANA.ready=true; return true; }
 function anaBars(){ return ANA.tf==='4h' ? (S.candles['1h'] ? aggregate(S.candles['1h'],14400) : null) : S.candles[ANA.tf]; }
-function anaDraw(fit){
+function anaDraw(fit){ chartEmpty('anaWrap', !anaBars()?.length, 'analysis chart');
   if(!ANA.ready && !anaInit()) return; const b=anaBars(); if(!b?.length) return; const o=ANA.ov, c=b.map(x=>x.c);
   const fitKey=ANA.tf; if(ANA.fitKey!==fitKey){ fit=true; ANA.fitKey=fitKey; }
   const snap = fit ? null : viewSnap(ANA.main, ANA.prevB); ANA.prevB=b;

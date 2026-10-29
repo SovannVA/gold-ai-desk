@@ -41,16 +41,31 @@ function chartSigInfo(sig, cond, op){
     return {word:side, kind:sig.side, msg:`${side} signal, grade ${g}. Conditions ${v.toLowerCase()}. Check the candle, then enter with ${lg?'SL set in MT5 and no TP (Long line: trail the stop)':'SL and TP set in MT5'}.`, nums: lg?[['Entry',sig.entry],['Stop loss',sig.sl]]:null}; }
   if(sig.state==='forming') return {word:side+' FORMING', kind:'wait', msg:`4 of 5 checks met. Waiting for: ${sig.checks.filter(c=>!c[1]).map(c=>c[0].toLowerCase()).join(', ')}. Don't enter yet.`};
   return {word:'WAIT', kind:'idle', msg:`No setup now (${sig.n} of 5 checks for a ${sig.side==='buy'?'buy':'sell'}). Wait.`}; }
+// trade card for the 5-check chart: the open trade, or the new / forming signal
+function tagCardObj(sig, op){
+  if(op){ const lg=op.hold==='long', t0=op.t-900;
+    return {title: op.tooRisky ? `${op.side.toUpperCase()} OPEN · stop is over your risk limit: learning only` : `${op.side.toUpperCase()} OPEN · do this in MT5`, side:op.side, entry:op.entry, sl:op.sl, sl0:op.sl0, tp:lg?null:op.tp, hold:op.hold, trailing:op.trailing, be:op.be,
+      targets: lg ? [['Target 2R', op.target]] : null, extra: (!lg && !op.be) ? [['Move SL to entry at', f2(op.beAt), 'warnc']] : null,
+      closeBy: lg ? `${khStamp((t0+24*3600)*1000)} (24 h) or the stop` : `${cfg.closeTime} Cambodia time`}; }
+  if(!sig || sig.state==='none' || sig.entry==null) return null;
+  const h=typeof sigHold==='function' ? sigHold(sig) : 'short', lg=h==='long';
+  return {title: sig.state==='signal' ? `NEW ${sig.side.toUpperCase()} SIGNAL · enter at the next candle` : `${sig.side.toUpperCase()} FORMING 4/5 · not yet: plan only`, planned: sig.state!=='signal',
+    side:sig.side, entry:sig.entry, sl:sig.sl, tp:lg?null:sig.tp, hold:h, targets: lg ? [['Target 2R', sig.tp]] : null,
+    extra: lg ? null : [['Move SL to entry at', f2(sig.be), 'warnc']], closeBy: lg ? '24 h after entry, or the stop' : `${cfg.closeTime} Cambodia time`}; }
 function renderChartBadge(id, sig, info){ const bd=$(id); if(!bd) return; clear(bd); bd.className='chartbadge '+info.kind;
   bd.appendChild(el('div','cbword',info.word));
+  const co=tagCardObj(sig, typeof chartTrades==='function' ? chartTrades()?.open : null);
+  if(co){ const R=Math.abs(co.entry-(co.sl0??co.sl)), l=lotFor(R), L=Math.max(l,0.01), lg=co.hold==='long';
+    bd.appendChild(el('div','cbnums', `Entry ${f2(co.entry)} · ${co.trailing?'Trail':'SL'} ${f2(co.sl)} · ${lg?`no TP · target ${f2(co.targets[0][1])} (guide)`:`TP ${f2(co.tp)}`}`));
+    bd.appendChild(el('div','cbnums', `Lot ${L.toFixed(2)}${l<0.01?' ⚠':''} · risk −$${f2(R*L*100)}${lg?'':` · TP +$${f2(Math.abs(co.tp-co.entry)*L*100)}`} · ${HOLD_NAMES[co.hold]}`)); return; }
   if(info.nums) bd.appendChild(el('div','cbnums', info.nums.filter(x=>x[1]!=null).map(([k,v])=>`${k.replace('Stop loss','SL').replace('Take profit','TP')} ${f2(v)}`).join(' · ')));
   else if(sig && sig.state!=='none') bd.appendChild(el('div','cbnums',`Entry ${f2(sig.entry)} · SL ${f2(sig.sl)} · TP ${f2(sig.tp)}`));
   else bd.appendChild(el('div','cbnums', sig ? `${sig.n} of 5 checks` : 'Not live')); }
 function renderChartSig(sig, cond){ const box=$('chartSig'); if(!box) return; clear(box);
   const info=chartSigInfo(sig, cond, (typeof chartTrades==='function' ? chartTrades()?.open : null)), v=cond?.verdict||'';
   box.className='sigbar '+info.kind; box.append(el('span','sigword',info.word), el('span','sigmsg',info.msg));
-  const rows = info.nums ? info.nums.filter(x=>x[1]!=null).map(([k,v])=>[k,f2(v)]) : (sig && sig.state!=='none') ? [['Entry',f2(sig.entry)],['Stop loss',f2(sig.sl)],['Take profit',f2(sig.tp)]] : null;
-  if(rows){ const n=el('div','signums'); rows.forEach(([k,x])=>{ const d=el('div'); d.append(el('span','small muted',k), el('b',null,x)); n.appendChild(d); }); box.appendChild(n); }
+  const op=(typeof chartTrades==='function' ? chartTrades()?.open : null), co=tagCardObj(sig, op);
+  if(co){ const cards=el('div','tradecards'); cards.appendChild(tradeCard(co.title, co, co.side+(co.planned?' plan':''))); box.appendChild(cards); }
   if(v){ box.appendChild(el('span','pill '+(v==='GOOD'?'good':v==='CAUTION'?'mid':'bad'),'Conditions '+(v==='GOOD'?'Good':v==='CAUTION'?'Caution':'Avoid'))); }
   renderChartBadge('tvBadge', sig, info); renderChartBadge('anaBadge', sig, info); }
 // ----- AI team check panel (Analysis chart + Tags) -----

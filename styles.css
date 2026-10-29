@@ -118,7 +118,7 @@ details.panel>summary{cursor:pointer;font-family:var(--font-num);font-weight:600
 .sigbar{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;padding:12px 16px;margin-bottom:12px;background:var(--surface);border:1px solid var(--line);border-left-width:5px;border-radius:var(--r-panel)}
 .sigbar .sigword{font-family:var(--font-num);font-weight:700;font-size:20px;letter-spacing:.03em;padding:6px 16px;border-radius:10px;background:var(--surface-2);color:var(--muted);white-space:nowrap}
 .sigbar .sigmsg{flex:1 1 240px;font-size:13.5px;color:var(--muted)}
-.sigbar .signums{display:flex;gap:18px}.sigbar .signums div{display:flex;flex-direction:column}.sigbar .signums b{font-family:var(--font-num);font-size:15px}
+.sigbar .signums{display:flex;gap:18px;flex-wrap:wrap}.sigbar .signums div{display:flex;flex-direction:column}.sigbar .signums b{font-family:var(--font-num);font-size:15px}
 .sigbar.buy{border-color:var(--up)}.sigbar.buy .sigword{background:var(--up-soft);color:var(--up)}
 .sigbar.sell{border-color:var(--down)}.sigbar.sell .sigword{background:var(--down-soft);color:var(--down)}
 .sigbar.wait{border-left-color:var(--warn)}.sigbar.wait .sigword{background:var(--warn-soft);color:var(--warn)}
@@ -353,3 +353,12 @@ body.noscroll{overflow:hidden}
 .sbox.tbox.guide{background:transparent;border-style:dotted;opacity:.6}
 .sline.lbtrail.guide{border-top:1px dashed var(--muted)}.sline.lbtrail.guide .stxt{color:var(--muted)}
 @media (max-width:860px){.holdrow .seg button{flex:1 1 auto}}
+/* trade cards: entry, SL, TP or targets, lot, risk, close time */
+.tradecards{flex:1 1 100%;display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:10px;margin-top:2px}
+.tradecard{border:1px solid var(--line);border-left:4px solid var(--muted);border-radius:10px;padding:10px 12px;background:var(--surface-2)}
+.tradecard.buy{border-left-color:var(--up)}.tradecard.sell{border-left-color:var(--down)}.tradecard.plan{border-style:dashed;border-left-style:solid}
+.tchead{font-weight:700;font-size:13px;margin-bottom:6px;font-family:var(--font-num)}
+.tcgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px 14px}
+.tcgrid div{display:flex;flex-direction:column;min-width:0}.tcgrid b{font-family:var(--font-num);font-size:14px;overflow-wrap:anywhere}
+.chartempty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:var(--muted);font-size:14px;pointer-events:none;z-index:3}
+@media (max-width:600px){.tcgrid{grid-template-columns:1fr 1fr;gap:6px 12px}.tradecards{grid-template-columns:1fr}}

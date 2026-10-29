@@ -24,6 +24,27 @@ const holdMode = () => ['long','auto'].includes(cfg.lbMode) ? cfg.lbMode : 'shor
 const HOLD_EMA = 200;   // Auto: a trade in the direction of the 15 min EMA 200 is held Long line, a trade against it is Short-term
 const holdPick = (mode, dir, price, e) => mode!=='auto' ? mode : (e!=null && Math.sign(price-e)===dir ? 'long' : 'short');
 const HOLD_NAMES = {short:'Short-term', long:'Long line', auto:'Auto (case by case)'};
+// ----- trade card: every level a trader needs for one BUY or SELL, in any strategy and holding style -----
+function chartEmpty(wrapId, none, name){ const w=$(wrapId), host=w?.querySelector('.chart-host'); if(!host) return; let e=host.querySelector('.chartempty');
+  if(none && !e) host.appendChild(el('div','chartempty',`No price data yet. Press Start live (top right) to load the candles and draw the ${name} with entry, SL and TP.`)); if(!none && e) e.remove(); }
+function lotFor(dist){ return dist>0 ? Math.floor(cfg.balance*cfg.riskPct/100/(dist*100)/0.01+1e-9)*0.01 : 0; }
+// o = {side, entry, sl, sl0, tp, hold, targets:[[label,price]], closeBy, pending, trailing, be}
+function tradeRows(o){ const dir=o.side==='buy'?1:-1, R=Math.abs(o.entry-(o.sl0??o.sl)), lot0=lotFor(R), lot=Math.max(lot0,0.01), m=d=>'$'+f2(Math.abs(d)*lot*100), rows=[];
+  const add=(k,v,c)=>rows.push([k,v,c]);
+  add(o.pending ? (dir>0?'Buy stop':'Sell stop') : 'Entry', f2(o.entry), dir>0?'up':'down');
+  add(o.trailing ? 'Trailing stop' : o.be ? 'Stop loss (at entry)' : 'Stop loss', f2(o.sl), 'down');
+  if(o.hold==='long'){ (o.targets||[['Target 1',o.entry+dir*1.5*R],['Target 2',o.entry+dir*3*R]]).forEach(([k,p])=>add(k+' (guide)', `${f2(p)} (+${m(p-o.entry)})`, 'muted'));
+    add('Take profit', 'None: trail the stop', 'warnc'); }
+  else if(o.tp!=null){ add('Take profit', `${f2(o.tp)} (+${m(o.tp-o.entry)})`, 'up'); add('R:R', '1:'+(Math.abs(o.tp-o.entry)/R).toFixed(1)); }
+  add('Lot', lot.toFixed(2)+(lot0<0.01?' ⚠ over your risk':''), lot0<0.01?'warnc':'');
+  const moved=o.sl0!=null && Math.abs(o.sl-o.sl0)>1e-6, now=(o.sl-o.entry)*dir;
+  if(moved) add('If the stop is hit now', (now>=0?'+':'−')+m(now), now>=0?'up':'down'); else add('Risk if SL hit', '−'+m(R), 'down');
+  (o.extra||[]).forEach(([k,v,c])=>add(k,v,c));
+  add('Hold', HOLD_NAMES[o.hold||'short']);
+  if(o.closeBy) add('Close by', o.closeBy);
+  return rows; }
+function tradeCard(title, o, cls){ const box=el('div','tradecard '+(cls||(o.side==='buy'?'buy':'sell'))); if(title) box.appendChild(el('div','tchead',title));
+  const g=el('div','tcgrid'); tradeRows(o).forEach(([k,v,c])=>{ const q=el('div'); q.append(el('span','small muted',k), el('b',c||null,v)); g.appendChild(q); }); box.appendChild(g); return box; }
 // trend check used by Auto and by the hold advisor: closes of the 15 min chart vs their EMA 200
 function holdTrend(b){ b=(b||[]).filter(x=>x && x.c!=null); if(b.length<50) return null; const e=ema(b.map(x=>x.c), HOLD_EMA).at(-1), p=S.price||b.at(-1).c;
   return {dir:Math.sign(p-e)||1, e, p, gap:p-e, warm:b.length>=HOLD_EMA}; }

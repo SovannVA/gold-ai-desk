@@ -57,7 +57,7 @@ function setChartMode(m){ chartMode=m; LS.set('goldAiDesk.chartMode', m);
   const lb=m==='lb'; ['lbWrap','lbTools','lbSig','lbInfoBox'].forEach(id=>{ if($(id)) $(id).hidden=!lb; });
   $('holdBar').hidden=!(lb||tag||smc); renderHoldBar(); renderOldWarn();
   ['chartSig','aiCheck','tagChips','tagLayer','anaBadge','tradeLegend'].forEach(id=>{ if($(id)) $(id).hidden=!tag; }); renderOverlayChips(); renderAiPanel();
-  if(m==='tv') tvEnsure('tvAdv'); else if(lb){ lbSetMode(lbMode()); lbRefresh(false); } else if(smc){ renderSmcChips(); smcRefresh(false); } else { anaInit(); if(anaBars()?.length) anaDraw(false); else { $('ohlc').textContent='Start live to load the analysis chart.'; } } }
+  if(m==='tv') tvEnsure('tvAdv'); else if(lb){ lbSetMode(lbMode()); lbRefresh(false); } else if(smc){ renderSmcChips(); smcRefresh(false); } else { anaInit(); if(anaBars()?.length) anaDraw(false); else { $('ohlc').textContent='Start live to load the analysis chart.'; chartEmpty('anaWrap', true, 'analysis chart'); } } }
 
 // ----- wiring -----
 function wire(){
