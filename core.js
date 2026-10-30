@@ -32,7 +32,9 @@ function lotFor(dist){ return dist>0 ? Math.floor(cfg.balance*cfg.riskPct/100/(d
 function tradeRows(o){ const dir=o.side==='buy'?1:-1, R=Math.abs(o.entry-(o.sl0??o.sl)), lot0=lotFor(R), lot=Math.max(lot0,0.01), m=d=>'$'+f2(Math.abs(d)*lot*100), rows=[];
   const add=(k,v,c)=>rows.push([k,v,c]);
   add(o.pending ? (dir>0?'Buy stop':'Sell stop') : 'Entry', f2(o.entry), dir>0?'up':'down');
-  add(o.trailing ? 'Trailing stop' : o.be ? 'Stop loss (at entry)' : 'Stop loss', f2(o.sl), 'down');
+  const lockd=(o.sl-o.entry)*dir;   // > 0: the stop is already on the profit side of the entry
+  add(o.trailing ? 'Trailing stop' : o.be ? 'Stop loss (moved to entry)' : 'Stop loss', f2(o.sl)+(lockd>0 ? ` (${dir>0?'above':'below'} entry: locks +${m(lockd)})` : ''), lockd>0?'up':'down');
+  if((o.be || o.trailing) && o.sl0!=null) add('First stop loss', f2(o.sl0), 'muted');
   if(o.hold==='long'){ (o.targets||[['Target 1',o.entry+dir*1.5*R],['Target 2',o.entry+dir*3*R]]).forEach(([k,p])=>add(k+' (guide)', `${f2(p)} (+${m(p-o.entry)})`, 'muted'));
     add('Take profit', 'None: trail the stop', 'warnc'); }
   else if(o.tp!=null){ add('Take profit', `${f2(o.tp)} (+${m(o.tp-o.entry)})`, 'up'); add('R:R', '1:'+(Math.abs(o.tp-o.entry)/R).toFixed(1)); }

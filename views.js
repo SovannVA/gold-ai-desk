@@ -30,6 +30,7 @@ function chartSigInfo(sig, cond, op){
   if(op){ const nm=op.side==='buy'?'BUY':'SELL', now=S.price||S.candles['15min']?.at(-1)?.c, pnl=now!=null?(now-op.entry)*op.dir:0, $p=(pnl>=0?'+$':'−$')+f2(Math.abs(usd(pnl)));
     if(op.hold==='long') return {word:`${nm} OPEN ${$p}`, kind:op.side, msg:`${holdMode()==='auto'?`Auto picked Long line (${op.withTrend?'with':'against'} the trend). `:''}Long line: no fixed TP. Trailing stop now ${f2(op.sl)}: move your MT5 stop to it. Close if it is hit, after 24 hours, or before the weekend.`, nums:[['Entry',op.entry],[op.trailing?'Trailing stop':'Stop loss',op.sl],['Target (guide)',op.target]]};
     const plan = op.be ? `Stop loss is already at entry, so no risk now. Hold for TP ${f2(op.tp)}.` : `Hold. When price reaches ${f2(op.beAt)}, move SL to entry ${f2(op.entry)}. Close at TP ${f2(op.tp)} or SL ${f2(op.sl)}.`;
+    if(op.tooRisky && op.be) return {word:`${nm} OPEN ${$p}`, kind:op.side, msg:`The first stop loss was ${f2(Math.abs(op.entry-op.sl0))} away, more than your ${f2(maxDist())} limit. Price has since moved ${f2(Math.abs(op.entry-op.sl0))} in your favour, so the stop was moved to entry ${f2(op.sl)} (${op.dir>0?'just above':'just below'} the ${f2(op.entry)} entry, which covers the spread). No risk is left. Hold for TP ${f2(op.tp)} or close by ${cfg.closeTime}.`};
     if(op.tooRisky) return {word:`${nm} · OVER RISK`, kind:'wait', msg:`The desk's ${nm} signal has a stop loss ${f2(Math.abs(op.entry-op.sl0))} away, more than your limit of ${f2(maxDist())}. Skip it, or use a smaller lot. Levels shown for learning only.`, nums:[['Entry',op.entry],['Stop loss',op.sl],['Take profit',op.tp]]};
     return {word:`${nm} OPEN ${$p}`, kind:op.side, msg:`${plan} Close by ${cfg.closeTime} if it is still open.`, nums:[['Entry',op.entry],[op.be?'SL (at entry)':'Stop loss',op.sl],['Move SL at',op.be?null:op.beAt],['Take profit',op.tp]]}; }
   const g=grade(sig,cond), v=cond?.verdict||'', side=sig?(sig.side==='buy'?'BUY':'SELL'):'';
@@ -44,7 +45,7 @@ function chartSigInfo(sig, cond, op){
 // trade card for the 5-check chart: the open trade, or the new / forming signal
 function tagCardObj(sig, op){
   if(op){ const lg=op.hold==='long', t0=op.t-900;
-    return {title: op.tooRisky ? `${op.side.toUpperCase()} OPEN · stop is over your risk limit: learning only` : `${op.side.toUpperCase()} OPEN · do this in MT5`, side:op.side, entry:op.entry, sl:op.sl, sl0:op.sl0, tp:lg?null:op.tp, hold:op.hold, trailing:op.trailing, be:op.be,
+    return {title: op.tooRisky && !op.be ? `${op.side.toUpperCase()} OPEN · stop is over your risk limit: learning only` : `${op.side.toUpperCase()} OPEN · do this in MT5`, side:op.side, entry:op.entry, sl:op.sl, sl0:op.sl0, tp:lg?null:op.tp, hold:op.hold, trailing:op.trailing, be:op.be,
       targets: lg ? [['Target 2R', op.target]] : null, extra: (!lg && !op.be) ? [['Move SL to entry at', f2(op.beAt), 'warnc']] : null,
       closeBy: lg ? `${khStamp((t0+24*3600)*1000)} (24 h) or the stop` : `${cfg.closeTime} Cambodia time`}; }
   if(!sig || sig.state==='none' || sig.entry==null) return null;
